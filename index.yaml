@@ -1,0 +1,25 @@
+workflows:
+  twig-sdlc-legacy:
+    description: "Legacy monolithic SDLC — intake through close-out in a single workflow"
+    path: twig-sdlc/twig-sdlc.yaml
+    versions: ["2.1.0"]
+  twig-sdlc-planning:
+    description: "SDLC Planning — recursive Epic/Issue planning with review and task creation"
+    path: recursive/twig-sdlc-planning.yaml
+    versions: ["0.1.0"]
+  twig-sdlc-implement:
+    description: "SDLC Implementation — coding, review, PR lifecycle, close-out"
+    path: recursive/twig-sdlc-implement.yaml
+    versions: ["0.1.0"]
+  twig-sdlc-full:
+    description: "Full SDLC — recursive planning then monolithic implementation (composite)"
+    path: recursive/twig-sdlc-full.yaml
+    versions: ["0.1.0"]
+  closeout-filing:
+    description: "File SDLC closeout observations as ADO work items (with human review gate)"
+    path: closeout-filing/closeout-filing.yaml
+    versions: ["1.0.0"]
+  plan-issue:
+    description: "Sub-workflow — breaks a single Issue into Tasks (called by twig-sdlc-planning)"
+    path: recursive/plan-issue.yaml
+    versions: ["0.1.0"]
