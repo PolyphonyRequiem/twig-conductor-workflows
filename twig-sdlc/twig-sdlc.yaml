@@ -88,8 +88,8 @@ agents:
     model: claude-sonnet-4.6
     input:
       - workflow.input.work_item_id?
-    system_prompt: !file prompts/duplicate-check.system.md
-    prompt: !file prompts/duplicate-check.prompt.md
+    system_prompt: !file ../prompts/duplicate-check.system.md
+    prompt: !file ../prompts/duplicate-check.prompt.md
     output:
       is_duplicate:
         type: boolean
@@ -114,8 +114,8 @@ agents:
       - workflow.input.work_item_id?
       - workflow.input.prompt?
       - workflow.input.plan_path?
-    system_prompt: !file prompts/intake.system.md
-    prompt: !file prompts/intake.prompt.md
+    system_prompt: !file ../prompts/intake.system.md
+    prompt: !file ../prompts/intake.prompt.md
     output:
       epic_id:
         type: number
@@ -150,8 +150,8 @@ agents:
     model: claude-sonnet-4.6
     input:
       - intake.output
-    system_prompt: !file prompts/plan-reader.system.md
-    prompt: !file prompts/plan-reader.prompt.md
+    system_prompt: !file ../prompts/plan-reader.system.md
+    prompt: !file ../prompts/plan-reader.prompt.md
     output:
       plan_path:
         type: string
@@ -183,8 +183,8 @@ agents:
       - review_router.output?
       - plan_approval.output?
       - open_questions_gate.output?
-    system_prompt: !file prompts/architect.system.md
-    prompt: !file prompts/architect.prompt.md
+    system_prompt: !file ../prompts/architect.system.md
+    prompt: !file ../prompts/architect.prompt.md
     output:
       plan_path:
         type: string
@@ -246,8 +246,8 @@ agents:
     input:
       - architect.output
       - intake.output
-    system_prompt: !file prompts/technical-reviewer.system.md
-    prompt: !file prompts/technical-reviewer.prompt.md
+    system_prompt: !file ../prompts/technical-reviewer.system.md
+    prompt: !file ../prompts/technical-reviewer.prompt.md
     output:
       score:
         type: number
@@ -265,8 +265,8 @@ agents:
     model: claude-sonnet-4.6
     input:
       - architect.output
-    system_prompt: !file prompts/readability-reviewer.system.md
-    prompt: !file prompts/readability-reviewer.prompt.md
+    system_prompt: !file ../prompts/readability-reviewer.system.md
+    prompt: !file ../prompts/readability-reviewer.prompt.md
     output:
       score:
         type: number
@@ -287,8 +287,8 @@ agents:
       - readability_reviewer.output
       - workflow.input.skip_plan_review?
       - architect.output
-    system_prompt: !file prompts/review-router.system.md
-    prompt: !file prompts/review-router.prompt.md
+    system_prompt: !file ../prompts/review-router.system.md
+    prompt: !file ../prompts/review-router.prompt.md
     output:
       tech_score:
         type: number
@@ -352,8 +352,8 @@ agents:
       - intake.output
       - architect.output?
       - plan_reader.output?
-    system_prompt: !file prompts/work-tree-seeder.system.md
-    prompt: !file prompts/work-tree-seeder.prompt.md
+    system_prompt: !file ../prompts/work-tree-seeder.system.md
+    prompt: !file ../prompts/work-tree-seeder.prompt.md
     output:
       work_tree:
         type: object
@@ -384,8 +384,8 @@ agents:
       - pr_group_manager.output?
       - task_manager.output?
       - pr_merge.output?
-    system_prompt: !file prompts/pr-group-manager.system.md
-    prompt: !file prompts/pr-group-manager.prompt.md
+    system_prompt: !file ../prompts/pr-group-manager.system.md
+    prompt: !file ../prompts/pr-group-manager.prompt.md
     output:
       action:
         type: string
@@ -432,8 +432,8 @@ agents:
       - task_reviewer.output?
       - issue_reviewer.output?
       - user_acceptance.output?
-    system_prompt: !file prompts/task-manager.system.md
-    prompt: !file prompts/task-manager.prompt.md
+    system_prompt: !file ../prompts/task-manager.system.md
+    prompt: !file ../prompts/task-manager.prompt.md
     output:
       action:
         type: string
@@ -488,8 +488,8 @@ agents:
       - intake.output
       - task_reviewer.output?
       - pr_reviewer.output?
-    system_prompt: !file prompts/coder.system.md
-    prompt: !file prompts/coder.prompt.md
+    system_prompt: !file ../prompts/coder.system.md
+    prompt: !file ../prompts/coder.prompt.md
     output:
       task_id:
         type: number
@@ -519,8 +519,8 @@ agents:
       - task_manager.output
       - architect.output?
       - plan_reader.output?
-    system_prompt: !file prompts/task-reviewer.system.md
-    prompt: !file prompts/task-reviewer.prompt.md
+    system_prompt: !file ../prompts/task-reviewer.system.md
+    prompt: !file ../prompts/task-reviewer.prompt.md
     output:
       decision:
         type: string
@@ -574,8 +574,8 @@ agents:
       - task_manager.output
       - architect.output?
       - plan_reader.output?
-    system_prompt: !file prompts/reducer.system.md
-    prompt: !file prompts/reducer-issue.prompt.md
+    system_prompt: !file ../prompts/reducer.system.md
+    prompt: !file ../prompts/reducer-issue.prompt.md
     output:
       findings:
         type: array
@@ -596,8 +596,8 @@ agents:
       - architect.output?
       - plan_reader.output?
       - reducer_issue.output
-    system_prompt: !file prompts/issue-reviewer.system.md
-    prompt: !file prompts/issue-reviewer.prompt.md
+    system_prompt: !file ../prompts/issue-reviewer.system.md
+    prompt: !file ../prompts/issue-reviewer.prompt.md
     output:
       decision:
         type: string
@@ -625,8 +625,8 @@ agents:
       - architect.output?
       - plan_reader.output?
       - work_tree_seeder.output
-    system_prompt: !file prompts/pr-submit.system.md
-    prompt: !file prompts/pr-submit.prompt.md
+    system_prompt: !file ../prompts/pr-submit.system.md
+    prompt: !file ../prompts/pr-submit.prompt.md
     output:
       pr_url:
         type: string
@@ -647,8 +647,8 @@ agents:
       - architect.output?
       - plan_reader.output?
       - pr_group_manager.output
-    system_prompt: !file prompts/pr-reviewer.system.md
-    prompt: !file prompts/pr-reviewer.prompt.md
+    system_prompt: !file ../prompts/pr-reviewer.system.md
+    prompt: !file ../prompts/pr-reviewer.prompt.md
     output:
       decision:
         type: string
@@ -687,8 +687,8 @@ agents:
       - pr_submit.output
       - architect.output?
       - plan_reader.output?
-    system_prompt: !file prompts/pr-fixer.system.md
-    prompt: !file prompts/pr-fixer.prompt.md
+    system_prompt: !file ../prompts/pr-fixer.system.md
+    prompt: !file ../prompts/pr-fixer.prompt.md
     output:
       files_modified:
         type: array
@@ -706,8 +706,8 @@ agents:
       - pr_group_manager.output
       - architect.output?
       - plan_reader.output?
-    system_prompt: !file prompts/pr-merge.system.md
-    prompt: !file prompts/pr-merge.prompt.md
+    system_prompt: !file ../prompts/pr-merge.system.md
+    prompt: !file ../prompts/pr-merge.prompt.md
     output:
       merged:
         type: boolean
@@ -743,8 +743,8 @@ agents:
       - pr_group_manager.output
       - intake.output
       - pr_finalizer.output?
-    system_prompt: !file prompts/pr-finalizer.system.md
-    prompt: !file prompts/pr-finalizer.prompt.md
+    system_prompt: !file ../prompts/pr-finalizer.system.md
+    prompt: !file ../prompts/pr-finalizer.prompt.md
     output:
       verified:
         type: boolean
@@ -781,8 +781,8 @@ agents:
       - architect.output?
       - plan_reader.output?
       - intake.output
-    system_prompt: !file prompts/reducer.system.md
-    prompt: !file prompts/reducer-pr.prompt.md
+    system_prompt: !file ../prompts/reducer.system.md
+    prompt: !file ../prompts/reducer-pr.prompt.md
     output:
       findings:
         type: array
@@ -808,8 +808,8 @@ agents:
       - pr_group_manager.output
       - pr_finalizer.output
       - work_tree_seeder.output
-    system_prompt: !file prompts/close-out.system.md
-    prompt: !file prompts/close-out.prompt.md
+    system_prompt: !file ../prompts/close-out.system.md
+    prompt: !file ../prompts/close-out.prompt.md
     output:
       observations:
         type: string
