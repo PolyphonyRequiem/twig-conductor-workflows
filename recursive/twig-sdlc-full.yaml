@@ -65,8 +65,10 @@ agents:
     type: workflow
     workflow: ./twig-sdlc-implement.yaml
     input:
-      - workflow.input.work_item_id?
-      - workflow.input.plan_path?
+      - planning.output
+    input_mapping:
+      work_item_id: "{{ planning.output.epic_id }}"
+      plan_path: "{{ planning.output.plan_path }}"
     output:
       observations:
         type: string
