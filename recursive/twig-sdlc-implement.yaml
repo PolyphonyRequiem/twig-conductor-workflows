@@ -138,7 +138,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - ".github/skills/twig-sdlc/assets/recursive/scripts/load-work-tree.ps1"
+      - "${USERPROFILE}/.conductor/registries/twig/recursive/scripts/load-work-tree.ps1"
       - "-WorkItemId"
       - "{{ intake.output.epic_id }}"
       - "-PlanPath"
