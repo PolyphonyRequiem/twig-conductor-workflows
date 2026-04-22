@@ -21,11 +21,18 @@ Create a PR for the current PR group.
      - If approved, include the justification in the PR description under a
        `## PR Group Override` section
      - If not approved or no response, STOP and return to pr_group_manager for re-grouping
-2. **Pre-submit validation** — check for stale references and build errors:
-   - `dotnet build --no-restore 2>&1` — must produce zero errors
+2. **Pre-submit validation** — quick build check and targeted tests:
+   - `dotnet build --no-restore -v quiet 2>&1` — must produce zero errors
    - If build fails, fix the issues (stale references to renamed/removed methods,
      missing usings, broken call sites) and commit the fixes before proceeding
-   - `dotnet test --settings test.runsettings` — all tests must pass
+   - Run **only the test projects relevant to the changed files**, not the full suite:
+     - Changes in `src/Twig.Domain/` → `dotnet test tests/Twig.Domain.Tests --no-build --settings test.runsettings`
+     - Changes in `src/Twig.Infrastructure/` → `dotnet test tests/Twig.Infrastructure.Tests --no-build --settings test.runsettings`
+     - Changes in `src/Twig/` → `dotnet test tests/Twig.Cli.Tests --no-build --settings test.runsettings`
+     - Changes in `src/Twig.Mcp/` → `dotnet test tests/Twig.Mcp.Tests --no-build --settings test.runsettings`
+     - Changes in `src/Twig.Tui/` → `dotnet test tests/Twig.Tui.Tests --no-build --settings test.runsettings`
+   - Use `git diff --name-only main` to determine which source directories were touched
+   - **Do NOT run the full test suite** — the CI/CD pipeline handles comprehensive testing on the PR
 3. Push the branch: `git push -u origin {{ pr_group_manager.output.branch_name }}`
 4. Create the PR:
    ```

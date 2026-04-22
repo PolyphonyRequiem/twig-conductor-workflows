@@ -20,7 +20,9 @@ Review the PR: {{ pr_submit.output.pr_url }}
 4. **Test Coverage**
    - Overall coverage adequate across the PR?
    - Integration between components tested?
-   - Run full test suite: `dotnet test --settings test.runsettings`
+   - Run targeted tests for changed directories:
+     `dotnet test tests/<RelevantProject>.Tests --no-build --settings test.runsettings`
+     (full suite runs in CI — only validate locally that relevant tests pass)
 
 5. **Git History**
    - Review all commits: `gh pr diff {{ pr_submit.output.pr_number }}`

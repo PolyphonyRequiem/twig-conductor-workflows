@@ -8,7 +8,8 @@ Review ALL files changed across this issue's tasks for cross-task opportunities:
 4. Test helpers or utilities used only once
 5. Duplicate or overlapping test cases across tasks
 Accumulate ALL findings and apply them in a SINGLE pass. Then:
-- Run tests: `dotnet test --settings test.runsettings`
+- Run targeted tests for changed directories only:
+  `dotnet test tests/<RelevantProject>.Tests --no-build --settings test.runsettings`
 - Make ONE commit with all reductions: `git add -A && git commit -m "reduce: post-issue sweep for #{{ task_manager.output.current_issue_id }} — <N> simplifications"`
 - Add ONE note: `twig note --text "Reducer: <summary of all changes>"`
 If nothing to reduce, say so.

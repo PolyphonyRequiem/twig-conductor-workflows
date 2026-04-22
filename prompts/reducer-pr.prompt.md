@@ -12,6 +12,7 @@ Apply **code-level reduction** across the PR group:
 - Abstractions that turned out unnecessary in the final shape
 - Test helpers that are used only once
 If you make changes:
-- Run tests: `dotnet test --settings test.runsettings`
+- Run targeted tests for changed directories only (use `git diff --name-only main` to identify):
+  `dotnet test tests/<RelevantProject>.Tests --no-build --settings test.runsettings`
 - Commit: `git add -A && git commit -m "reduce: pre-PR sweep for {{ pr_group_manager.output.current_pr_group }}"`
 If nothing to reduce, say so.
