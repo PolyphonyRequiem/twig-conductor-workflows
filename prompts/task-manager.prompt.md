@@ -6,7 +6,7 @@ Manage tasks within the current PR group.
 **Tasks in PR Group:** {{ pr_group_manager.output.pr_group_task_ids | json }}
 
 **Work Tree:**
-{{ work_tree_seeder.output.work_tree | json }}
+{{ work_tree_seeder.output.stdout }}
 
 **Plan:** {{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}
 

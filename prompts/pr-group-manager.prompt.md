@@ -1,10 +1,7 @@
 Manage PR group lifecycle.
 
-**Work Tree:**
-{{ work_tree_seeder.output.work_tree | json }}
-
-**PR Groups:**
-{{ work_tree_seeder.output.pr_groups | json }}
+**Work Tree and PR Groups:**
+{{ work_tree_seeder.output.stdout }}
 
 **Plan:** {{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}
 
