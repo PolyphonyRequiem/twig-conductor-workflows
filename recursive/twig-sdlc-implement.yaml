@@ -17,6 +17,8 @@ workflow:
     project_url: https://dev.azure.com/dangreen-msft/Twig
     work_item_id_agent: intake
     work_item_id_field: epic_id
+    worktree_name: "twig2-{work_item_id}"
+    worktree_description: "Implementation-only worktree"
   entry_point: duplicate_check
   runtime:
     provider: copilot

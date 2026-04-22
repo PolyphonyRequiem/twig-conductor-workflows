@@ -21,6 +21,9 @@ workflow:
     project_url: https://dev.azure.com/dangreen-msft/Twig
     work_item_id_agent: intake
     work_item_id_field: epic_id
+    worktree_name: "twig2-{work_item_id}"
+    worktree_description: "Recursive implementation dispatcher"
+    work_item_id_field: epic_id
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6
