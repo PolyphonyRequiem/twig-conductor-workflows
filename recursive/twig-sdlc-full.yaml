@@ -95,8 +95,10 @@ agents:
 
   # ── REPLAN GATE (human decision) ────────────────────────────────
   - name: replan_gate
-    type: gate
+    type: human_gate
     description: Existing plan detected — choose to reuse or replan
+    input:
+      - plan_detector.output
     prompt: |
       An existing plan was found at: {{ plan_detector.output.discovered_plan_path }}
       {% if plan_detector.output.has_child_items %}
@@ -105,19 +107,13 @@ agents:
       {% endif %}
 
       What would you like to do?
-    choices:
+    options:
       - label: "Use existing plan"
         value: "use_existing"
-        description: "Skip planning and proceed to implementation with the discovered plan"
+        route: implementation
       - label: "Replan from scratch"
         value: "replan"
-        description: "Delete existing child items and run full planning"
-    input:
-      - plan_detector.output
-    routes:
-      - to: implementation
-        when: "{{ output.response == 'use_existing' }}"
-      - to: planning
+        route: planning
 
   # ── PHASE 1: PLANNING ────────────────────────────────────────────
   - name: planning
