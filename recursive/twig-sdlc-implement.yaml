@@ -134,6 +134,9 @@ agents:
   - name: work_tree_seeder
     type: script
     description: Loads ADO work tree and PR group structure deterministically
+    input:
+      - intake.output
+      - plan_reader.output
     command: pwsh
     args:
       - "-NoProfile"
