@@ -30,8 +30,10 @@ workflow:
   metadata:
     tracker: ado
     project_url: https://dev.azure.com/dangreen-msft/Twig
+    work_item_id: "{work_item_id}"
     worktree_name: "twig2-{work_item_id}"
-    worktree_description: "Closeout filing worktree"
+    git_repo: "C:\\Users\\dangreen\\projects\\twig2"
+    cwd: "C:\\Users\\dangreen\\projects\\twig2-{work_item_id}"
   entry_point: scanner
   runtime:
     provider: copilot
