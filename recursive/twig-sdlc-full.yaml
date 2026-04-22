@@ -146,8 +146,8 @@ agents:
       - plan_detector.output?
       - workflow.input.work_item_id?
     input_mapping:
-      work_item_id: "{{ planning.output.epic_id if planning is defined else workflow.input.work_item_id }}"
-      plan_path: "{{ planning.output.plan_path if planning is defined else plan_detector.output.discovered_plan_path }}"
+      work_item_id: "{{ planning.output.epic_id if planning is defined and planning.output.epic_id is defined else workflow.input.work_item_id }}"
+      plan_path: "{{ planning.output.plan_path if planning is defined and planning.output.plan_path is defined else plan_detector.output.discovered_plan_path }}"
     output:
       observations:
         type: string
@@ -157,7 +157,7 @@ agents:
       - to: $end
 
 output:
-  epic_id: "{{ planning.output.epic_id if planning is defined else workflow.input.work_item_id }}"
-  plan_path: "{{ planning.output.plan_path if planning is defined else plan_detector.output.discovered_plan_path if plan_detector is defined else '' }}"
-  observations: "{{ implementation.output.observations if implementation is defined else '' }}"
-  improvements: "{{ (implementation.output.improvements | json) if implementation is defined else '[]' }}"
+  epic_id: "{{ planning.output.epic_id if planning is defined and planning.output.epic_id is defined else workflow.input.work_item_id }}"
+  plan_path: "{{ planning.output.plan_path if planning is defined and planning.output.plan_path is defined else plan_detector.output.discovered_plan_path if plan_detector is defined else '' }}"
+  observations: "{{ implementation.output.observations if implementation is defined and implementation.output.observations is defined else '' }}"
+  improvements: "{{ (implementation.output.improvements | json) if implementation is defined and implementation.output.improvements is defined else '[]' }}"
