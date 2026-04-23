@@ -45,6 +45,14 @@ workflow:
       type: string
       required: false
       description: Path to the approved .plan.md file. Auto-detected if not provided.
+    child_issue_plans:
+      type: string
+      required: false
+      description: JSON mapping of child issue_id to plan_path (for Epic-level runs with multiple plans).
+    work_item_type:
+      type: string
+      required: false
+      description: Work item type (Epic, Issue, Task). Used to enable multi-plan auto-discovery.
     prompt:
       type: string
       required: false
@@ -141,6 +149,8 @@ agents:
       - "{{ intake.output.epic_id }}"
       - "-PlanPath"
       - "{{ plan_reader.output.plan_path }}"
+      - "-PlanDir"
+      - "docs/projects"
     routes:
       - to: pr_group_manager
 

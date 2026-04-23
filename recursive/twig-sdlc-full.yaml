@@ -56,16 +56,71 @@ agents:
       An explicit plan_path was provided: {{ workflow.input.plan_path }}
       Set has_explicit_plan to true and set discovered_plan_path to that value.
       Set has_existing_plan to true.
+      Set discovered_plan_paths to [{{ workflow.input.plan_path }}].
+      Set work_item_type to "Unknown".
       {% elif workflow.input.work_item_id %}
-      Check if an existing plan document exists for work item #{{ workflow.input.work_item_id }}.
-      Search for files matching `docs/projects/*.plan.md` using the filesystem.
-      Also use twig to check if the work item has child Issues/Tasks already created.
+      Check if existing plan documents exist for work item #{{ workflow.input.work_item_id }}.
 
-      Run: `twig set {{ workflow.input.work_item_id }}` then `twig tree --depth 1`
-      to see if children exist.
+      ## Step 1: Identify the work item type and children
+      Run: `twig set {{ workflow.input.work_item_id }} --output json` then `twig tree --depth 1 --output json`
+      Note the work item **type** (Epic, Issue, or Task) from the tree output.
+      Note any child Issues and their IDs.
 
-      Search for plan files: look for `.plan.md` files in `docs/projects/` that
-      reference this work item ID in their content.
+      ## Step 2: Search for plan files using FRONTMATTER or TABLE METADATA matching (primary)
+      Search for `.plan.md` files in `docs/projects/`. Plans use TWO metadata formats:
+
+      **Format A — YAML frontmatter** (preferred, newer plans):
+      ```yaml
+      ---
+      work_item_id: 2017
+      title: "..."
+      type: Issue
+      ---
+      ```
+
+      **Format B — Table metadata** (legacy plans):
+      ```
+      | **Work Item** | #2016 |
+      ```
+      or:
+      ```
+      | **Issue** | #2016 |
+      ```
+
+      Script to extract work item IDs from all plans:
+      ```powershell
+      Get-ChildItem docs/projects/*.plan.md | ForEach-Object {
+        $content = Get-Content $_.FullName -Raw
+        $id = $null
+        if ($content -match '(?s)^---\s*\n(.*?)\n---') {
+          $fm = $Matches[1]
+          if ($fm -match 'work_item_id:\s*(\d+)') { $id = [int]$Matches[1] }
+        }
+        if (-not $id -and $content -match '\|\s*\*{0,2}Work\s*Item\*{0,2}\s*\|\s*#(\d+)') { $id = [int]$Matches[1] }
+        if (-not $id -and $content -match '\|\s*\*{0,2}Issue\*{0,2}\s*\|\s*#(\d+)') { $id = [int]$Matches[1] }
+        if ($id) { [PSCustomObject]@{ Path=$_.Name; WorkItemId=$id } }
+      } | Format-Table
+      ```
+
+      ## Step 3: Match plans to work items
+      **If work item is an Epic:**
+      - Check if any plan has `work_item_id` matching the Epic ID directly (Epic-level plan)
+      - Also check if child Issues have matching plans (child Issue ID matches a plan's `work_item_id`)
+      - Collect ALL matching plans into `discovered_plan_paths` array
+      - Build `child_issue_plans` as a JSON object mapping issue_id → plan_path for each child Issue that has a plan
+      - Set `discovered_plan_path` to the Epic-level plan if found, otherwise to the first child plan (backward compat)
+      - Set `has_existing_plan` to true if ANY plans were found (Epic-level or child-level)
+
+      **If work item is an Issue or Task:**
+      - Check if any plan has `work_item_id` matching this ID exactly
+      - Set `discovered_plan_path` to that plan
+      - Set `discovered_plan_paths` to [that plan]
+
+      ## Step 4: Fallback content search (ONLY if no frontmatter match found)
+      If Step 2-3 found no plans, fall back to searching file content for the work item ID.
+      ⚠️ Content search is a legacy heuristic — it may match a child Issue's plan that merely
+      references the parent Epic ID. Prefer frontmatter matching.
+
       {% else %}
       No work_item_id provided (prompt-only flow). No existing plan to detect.
       Set all fields to false/empty.
@@ -76,10 +131,19 @@ agents:
         description: True if plan_path was explicitly provided by the user
       has_existing_plan:
         type: boolean
-        description: True if a plan document was found for this work item
+        description: True if any plan document(s) were found for this work item or its children
       discovered_plan_path:
         type: string
-        description: Path to the discovered plan file (empty if none found)
+        description: Path to the primary plan file (Epic-level if exists, else first child plan, empty if none)
+      discovered_plan_paths:
+        type: array
+        description: Array of ALL discovered plan paths (for Epic, includes all child issue plans)
+      child_issue_plans:
+        type: string
+        description: JSON object mapping child issue_id to plan_path (e.g. '{"2016":"docs/projects/twig-link-artifact.plan.md"}')
+      work_item_type:
+        type: string
+        description: The work item type — Epic, Issue, or Task
       has_child_items:
         type: boolean
         description: True if the work item already has child Issues/Tasks
@@ -100,7 +164,14 @@ agents:
     input:
       - plan_detector.output
     prompt: |
+      {% if plan_detector.output.work_item_type == 'Epic' and plan_detector.output.discovered_plan_paths | length > 1 %}
+      **Epic with {{ plan_detector.output.discovered_plan_paths | length }} child issue plans found:**
+      {% for path in plan_detector.output.discovered_plan_paths %}
+      - {{ path }}
+      {% endfor %}
+      {% else %}
       An existing plan was found at: {{ plan_detector.output.discovered_plan_path }}
+      {% endif %}
       {% if plan_detector.output.has_child_items %}
       The work item also has {{ plan_detector.output.child_count }} child items already created.
       Replanning will delete all child items tagged with "twig" before creating new ones.
@@ -148,6 +219,8 @@ agents:
     input_mapping:
       work_item_id: "{{ planning.output.epic_id if planning is defined and planning.output.epic_id is defined else workflow.input.work_item_id }}"
       plan_path: "{{ planning.output.plan_path if planning is defined and planning.output.plan_path is defined else plan_detector.output.discovered_plan_path }}"
+      child_issue_plans: "{{ plan_detector.output.child_issue_plans if plan_detector is defined and plan_detector.output.child_issue_plans is defined else '' }}"
+      work_item_type: "{{ plan_detector.output.work_item_type if plan_detector is defined and plan_detector.output.work_item_type is defined else '' }}"
     output:
       observations:
         type: string
