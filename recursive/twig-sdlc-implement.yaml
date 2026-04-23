@@ -12,10 +12,6 @@
 workflow:
   name: twig-sdlc-implement
   description: Implementation-only SDLC — coding, review, PR lifecycle, and close-out
-  metadata:
-    tracker: ado
-    project_url: https://dev.azure.com/dangreen-msft/Twig
-    git_repo: "C:\\Users\\dangreen\\projects\\twig2"
   entry_point: duplicate_check
   runtime:
     provider: copilot

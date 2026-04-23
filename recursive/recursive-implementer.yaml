@@ -16,10 +16,6 @@ workflow:
   name: recursive-implementer
   description: Implementation dispatcher — orchestrates coding, review, and PR lifecycle via sub-workflows
   entry_point: intake
-  metadata:
-    tracker: ado
-    project_url: https://dev.azure.com/dangreen-msft/Twig
-    git_repo: "C:\\Users\\dangreen\\projects\\twig2"
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6

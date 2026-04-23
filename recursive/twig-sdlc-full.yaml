@@ -13,10 +13,6 @@ workflow:
   name: twig-sdlc-full
   description: Full SDLC — recursive planning then monolithic implementation
   entry_point: plan_detector
-  metadata:
-    tracker: ado
-    project_url: https://dev.azure.com/dangreen-msft/Twig
-    git_repo: "C:\\Users\\dangreen\\projects\\twig2"
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6
