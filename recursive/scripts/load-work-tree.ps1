@@ -170,7 +170,36 @@ else {
     }
 }
 
-# ── Step 4: Output ───────────────────────────────────────────────────────────
+# ── Step 4: Determine PG completion status (P3 resume support) ───────────────
+
+# Check for merged PRs on branches matching PG names
+$mergedPRs = @()
+$prListJson = gh pr list --state merged --limit 50 --json number,headRefName,mergedAt 2>$null
+if ($prListJson) {
+    $mergedPRs = $prListJson | ConvertFrom-Json
+}
+
+foreach ($pg in $prGroups) {
+    $branchSlug = $pg.branch_name_suggestion
+    # Check if a merged PR exists for this PG's branch
+    $matchedPR = $mergedPRs | Where-Object { $_.headRefName -eq $branchSlug -or $_.headRefName -match ($pg.name -replace '-', '[-/]') }
+
+    # Check if all tasks in this PG are Done
+    $pgTasksDone = $true
+    foreach ($taskId in $pg.task_ids) {
+        $task = $allTasks | Where-Object { $_.id -eq $taskId }
+        if ($task -and $task.state -ne 'Done') { $pgTasksDone = $false; break }
+    }
+
+    $pg.completed = ($matchedPR.Count -gt 0) -or ($pg.task_ids.Count -gt 0 -and $pgTasksDone)
+    $pg.merged_pr = if ($matchedPR.Count -gt 0) { $matchedPR[0].number } else { 0 }
+}
+
+$completedPGs = @($prGroups | Where-Object { $_.completed })
+$pendingPGs = @($prGroups | Where-Object { -not $_.completed })
+$nextPG = if ($pendingPGs.Count -gt 0) { $pendingPGs[0].name } else { '' }
+
+# ── Step 5: Output ───────────────────────────────────────────────────────────
 
 [ordered]@{
     work_tree  = [ordered]@{
@@ -179,9 +208,12 @@ else {
         epic_type  = $focus.type
         issues     = $issues
     }
-    pr_groups   = $prGroups
-    total_tasks = $allTasks.Count
-    total_issues = $issues.Count
-    tagged_items = $taggedCount
-    untagged_items = ($allItems.Count - $taggedCount)
+    pr_groups       = $prGroups
+    completed_pgs   = @($completedPGs | ForEach-Object { $_.name })
+    pending_pgs     = @($pendingPGs | ForEach-Object { $_.name })
+    next_pg         = $nextPG
+    total_tasks     = $allTasks.Count
+    total_issues    = $issues.Count
+    tagged_items    = $taggedCount
+    untagged_items  = ($allItems.Count - $taggedCount)
 } | ConvertTo-Json -Depth 5

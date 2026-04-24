@@ -1,7 +1,7 @@
 Manage PR group lifecycle.
 
 **Work Tree and PR Groups:**
-{{ work_tree_seeder.output.stdout }}
+{{ work_tree_loader.output.stdout }}
 
 {% if pr_group_manager is defined and pr_group_manager.output %}
 **Current State:**
@@ -10,6 +10,15 @@ Manage PR group lifecycle.
 - Completed Issues: {{ pr_group_manager.output.completed_issues | json }}
 - Completed PRs: {{ pr_group_manager.output.completed_prs | json }}
 {% endif %}
+
+## Resume Support (P3)
+
+On your **first invocation** (no prior pr_group_manager output), check the work tree
+for already-completed PGs. The work tree loader outputs `completed_pgs`, `pending_pgs`,
+and `next_pg`. Start from `next_pg` — do NOT re-process completed PGs.
+
+If ALL PGs are already completed (`next_pg` is empty), set `action: all_complete`
+immediately.
 
 ## Staleness Check (before starting each new PG)
 
