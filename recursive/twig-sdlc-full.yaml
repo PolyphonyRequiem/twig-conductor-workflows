@@ -189,10 +189,9 @@ agents:
       prompt: "{{ workflow.input.prompt | default('') }}"
       intent: "{{ state_detector.output.intent if state_detector is defined else workflow.input.intent | default('resume') }}"
     output:
-      epic_id:
+      work_item_id:
         type: number
-      epic_title:
-        type: string
+        description: The root work item ID (same as input, or newly created Epic ID from prompt)
       plan_path:
         type: string
     routes:
@@ -205,10 +204,9 @@ agents:
     input:
       - state_detector.output?
       - planning.output?
-      - workflow.input.work_item_id?
     input_mapping:
-      work_item_id: "{{ planning.output.epic_id if planning is defined and planning.output.epic_id is defined else state_detector.output.work_item_id if state_detector is defined else workflow.input.work_item_id }}"
-      intent: "{{ state_detector.output.intent if state_detector is defined else workflow.input.intent | default('resume') }}"
+      work_item_id: "{{ planning.output.work_item_id if planning is defined and planning.output.work_item_id else state_detector.output.work_item_id }}"
+      intent: "{{ state_detector.output.intent if state_detector is defined else 'resume' }}"
     output:
       observations:
         type: string
