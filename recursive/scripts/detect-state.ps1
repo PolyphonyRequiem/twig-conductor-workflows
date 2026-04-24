@@ -159,18 +159,19 @@ if ($implementationStatus -eq 'done') {
     $phase = 'done'
 }
 elseif (-not $errorMsg -and -not $intentConflict -and -not $needsCleanup) {
-    # Inconsistent state detection (only for non-done items)
-    if ($hasSeededChildren -and -not $hasPlan -and $planStatus -ne 'ambiguous' -and $Intent -eq 'resume') {
-        $errorMsg = "Work item #$WorkItemId has seeded children but no discoverable plan. Use intent=redo to start over."
-    }
-
     if ($planStatus -eq 'ambiguous') {
         $errorMsg = "Multiple plan files match work item #$WorkItemId. Resolve ambiguity manually or use --plan_path override."
     }
 
     if (-not $errorMsg) {
-        if ($hasPlan -and $hasSeededChildren) {
+        if ($hasSeededChildren) {
+            # Children exist — go to implementation regardless of plan status.
+            # The plan is context (P2), not required for implementation.
             $phase = 'ready_for_implementation'
+        }
+        elseif ($hasPlan) {
+            # Plan exists but no children — planning needs to seed
+            $phase = 'needs_planning'
         }
         else {
             $phase = 'needs_planning'

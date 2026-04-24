@@ -94,22 +94,13 @@ agents:
     input:
       - state_detector.output
     prompt: |
-      You requested `intent=new` for work item #{{ state_detector.output.work_item_id }}
-      ({{ state_detector.output.work_item_title }}), but prior work already exists:
+      You requested `intent=new` but prior work already exists for this work item.
 
-      {% if state_detector.output.has_seeded_children %}
-      - **{{ state_detector.output.children_summary }}** child work items exist
-      {% endif %}
-      {% if state_detector.output.has_plan %}
-      - A plan document exists at: {{ state_detector.output.plan_path }}
-      {% endif %}
+      **State detection result:**
+      {{ state_detector.output.stdout }}
 
       What would you like to do?
     options:
-      - label: "Resume where we left off"
-        value: "resume"
-        route: implementation
-        when: "{{ state_detector.output.phase == 'ready_for_implementation' }}"
       - label: "Resume where we left off"
         value: "resume"
         route: planning
@@ -147,17 +138,16 @@ agents:
     type: workflow
     workflow: ./twig-sdlc-planning.yaml
     input:
-      - state_detector.output?
       - workflow.input.work_item_id?
       - workflow.input.prompt?
+      - workflow.input.intent?
     input_mapping:
-      work_item_id: "{{ state_detector.output.work_item_id if state_detector is defined and state_detector.output.work_item_id else workflow.input.work_item_id }}"
+      work_item_id: "{{ workflow.input.work_item_id }}"
       prompt: "{{ workflow.input.prompt | default('') }}"
-      intent: "{{ state_detector.output.intent if state_detector is defined else workflow.input.intent | default('resume') }}"
+      intent: "{{ workflow.input.intent | default('resume') }}"
     output:
       work_item_id:
         type: number
-        description: The root work item ID (same as input, or newly created Epic ID from prompt)
       plan_path:
         type: string
     routes:
@@ -168,11 +158,12 @@ agents:
     type: workflow
     workflow: ./twig-sdlc-implement.yaml
     input:
-      - state_detector.output?
       - planning.output?
+      - workflow.input.work_item_id?
+      - workflow.input.intent?
     input_mapping:
-      work_item_id: "{{ planning.output.work_item_id if planning is defined and planning.output.work_item_id else state_detector.output.work_item_id }}"
-      intent: "{{ state_detector.output.intent if state_detector is defined else 'resume' }}"
+      work_item_id: "{{ planning.output.work_item_id if planning is defined and planning.output.work_item_id else workflow.input.work_item_id }}"
+      intent: "{{ workflow.input.intent | default('resume') }}"
     output:
       observations:
         type: string
