@@ -162,7 +162,7 @@ agents:
       - workflow.input.work_item_id?
       - workflow.input.intent?
     input_mapping:
-      work_item_id: "{{ planning.output.work_item_id if planning is defined and planning.output.work_item_id else workflow.input.work_item_id }}"
+      work_item_id: "{{ planning.output.work_item_id if planning is defined and planning.output is defined else workflow.input.work_item_id }}"
       intent: "{{ workflow.input.intent | default('resume') }}"
     output:
       observations:
@@ -218,7 +218,7 @@ agents:
       - to: $end
 
 output:
-  work_item_id: "{{ state_detector.output.work_item_id if state_detector is defined else workflow.input.work_item_id }}"
-  phase: "{{ state_detector.output.phase if state_detector is defined else 'unknown' }}"
+  work_item_id: "{{ workflow.input.work_item_id }}"
+  phase: "{{ state_detector.output.stdout if state_detector is defined else 'unknown' }}"
   observations: "{{ retrospective.output.summary if retrospective is defined else '' }}"
   improvements: "{{ (retrospective.output.improvements | json) if retrospective is defined else '[]' }}"
