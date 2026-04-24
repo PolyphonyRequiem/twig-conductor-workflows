@@ -1,7 +1,7 @@
 Create a solution design and implementation plan.
-**Work Item:** #{{ intake.output.epic_id }} — {{ intake.output.epic_title }}
+**Work Item:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
 **Type:** {{ intake.output.item_type }}
-**Description:** {{ intake.output.epic_description }}
+**Description:** {{ intake.output.description }}
 {% if intake.output.existing_issues | length > 0 %}
 **Existing child Issues (reuse these — do NOT create duplicates):**
 {% for issue in intake.output.existing_issues %}

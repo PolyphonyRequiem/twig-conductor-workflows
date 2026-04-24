@@ -1,6 +1,6 @@
 File the closeout observations and improvements as a reviewable ADO Issue.
 
-**Epic:** #{{ intake.output.epic_id }} — {{ intake.output.epic_title }}
+**Epic:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
 **Observations:** {{ close_out.output.observations }}
 **Improvements:** {{ close_out.output.improvements | json }}
 **Agent Struggles:** {{ close_out.output.agent_struggles | json }}
@@ -8,8 +8,8 @@ File the closeout observations and improvements as a reviewable ADO Issue.
 ## Steps
 
 1. **Create a new Issue via twig seed:**
-   - `twig set {{ intake.output.epic_id }} --output json` (set context to the completed epic)
-   - `twig seed new --type Issue --title "{{ intake.output.epic_title }} — Closeout Notes"`
+   - `twig set {{ intake.output.work_item_id }} --output json` (set context to the completed epic)
+   - `twig seed new --type Issue --title "{{ intake.output.title }} — Closeout Notes"`
    - `twig seed publish --all`
 
 2. **Tag the Issue for discovery:**

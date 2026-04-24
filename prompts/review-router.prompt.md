@@ -22,7 +22,9 @@ Gating rules (apply in order):
    - The score floor of 80 is a safety net for catastrophic drafts; it is NOT the normal gate.
    - The normal gate is `blocking_issue_count == 0`. Reviewers are calibrated so that 92–98 is the expected range for executable plans; do NOT re-derive a score gate from these numbers.
 3. A plan is "trivial" if it has ≤2 issues and ≤200 estimated LoC.
-4. `skip_plan_review` input: {{ workflow.input.skip_plan_review | default(false) }}.
+4. `intent` input: {{ workflow.input.intent | default('resume') }}.
+   If intent is "resume" and a plan was previously approved, set `skip_approval` to true.
+   If intent is "new", always require approval (`skip_approval` = false).
 5. Mirror `architect.output.plan_revision_count` into your `plan_revision_count` output.
 6. If `plan_revision_count >= 2`, the loop is capped. Proceed to `plan_approval` (or `work_tree_seeder` if `skip_approval`) regardless of `blocking_issue_count`. Include any unresolved blocking issues in `combined_feedback` so the human gate can decide.
 

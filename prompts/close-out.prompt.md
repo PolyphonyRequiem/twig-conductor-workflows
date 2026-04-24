@@ -1,5 +1,5 @@
 Close out the SDLC workflow.
-**Epic:** #{{ intake.output.epic_id }} — {{ intake.output.epic_title }}
+**Epic:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
 **Completed Issues:** {{ pr_group_manager.output.completed_issues | json }}
 **Completed PRs:** {{ pr_group_manager.output.completed_prs | json }}
 **Plan:** {{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}
@@ -20,7 +20,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
    - This ensures issues/tasks transitioned by other agents are reflected locally
    - If sync fails with a transient ADO error, retry up to 3 times with 5-second delays
 0b. **Fast-path: Already-Done check** (skip redundant verification when re-running):
-   - `twig set {{ intake.output.epic_id }} --output json` — read the current state
+   - `twig set {{ intake.output.work_item_id }} --output json` — read the current state
    - If the state is already "Done":
      1. Record the fast-path decision:
         `twig note --text "Fast-path: Epic/Issue is already Done — skipping PR/branch/child verification (Steps 1–4) and proceeding directly to observations."`
@@ -48,7 +48,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
    - If ANY branch matches a planned PR group that should be complete, STOP and
      report — code exists on a branch that was never PR'd or merged
 1c. **Verify all child items are Done** (guard against premature Epic closure):
-   - `twig set {{ intake.output.epic_id }} --output json`
+   - `twig set {{ intake.output.work_item_id }} --output json`
    - `twig tree --output json` — inspect all children
    - If ANY child Issue or Task is NOT in state "Done":
      1. Set `epic_completed: false`
@@ -69,7 +69,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
    - This ensures no Issues are left in a misleading "Doing" state after any
      workflow run (crash, partial completion, or scope mismatch)
 2. **Check current state (idempotency):**
-   - `twig set {{ intake.output.epic_id }} --output json` — read the current state
+   - `twig set {{ intake.output.work_item_id }} --output json` — read the current state
    - `git log --oneline -10` — check if a close commit already exists
    - If state is already "Done" AND a close commit exists, skip steps 3-4 and go to step 5
 3. **Transition the Epic to Done** (only if not already Done):
@@ -91,7 +91,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
    - Was the plan accurate, or did implementation diverge significantly?
    - Commit cadence and rework analysis from the git log
 7. **Record observations in ADO** — add a twig note summarizing key meta-observations:
-   - `twig set {{ intake.output.epic_id }} --output json`
+   - `twig set {{ intake.output.work_item_id }} --output json`
    - `twig note --text "Workflow observations: <2-3 sentence summary of what went well, what struggled, and top improvement>"`
    - `twig sync --output json` — flush the note to ADO; capture the JSON output
 7b. **Verify note persistence** (guard against staged-but-not-flushed notes; see #1635):
@@ -110,7 +110,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
 9. **Final commit** (only if there are uncommitted changes AND `epic_completed` is true):
    - **If `epic_completed` is false**: **SKIP this step.** Do not create a close commit for incomplete work.
    - `git diff --stat HEAD` — check for changes
-   - If changes exist: `git add -A && git commit -m "close: {{ intake.output.epic_title }}" && git push`
+   - If changes exist: `git add -A && git commit -m "close: {{ intake.output.title }}" && git push`
    - If no changes: skip commit
 10. **Tag the release** (after all pushes are complete — **only if `epic_completed` is true**):
    - **If `epic_completed` is false** (Step 1c found incomplete children): **SKIP this step entirely.**

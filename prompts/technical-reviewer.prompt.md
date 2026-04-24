@@ -1,5 +1,5 @@
 Review the implementation plan at `{{ architect.output.plan_path }}`.
-**Context:** Implementing #{{ intake.output.epic_id }} — {{ intake.output.epic_title }}
+**Context:** Implementing #{{ intake.output.work_item_id }} — {{ intake.output.title }}
 
 ## Fact-Checking
 

@@ -146,7 +146,7 @@ agents:
       - "-File"
       - "${USERPROFILE}/.conductor/registries/twig/recursive/scripts/load-work-tree.ps1"
       - "-WorkItemId"
-      - "{{ intake.output.epic_id }}"
+      - "{{ intake.output.work_item_id }}"
       - "-PlanPath"
       - "{{ plan_reader.output.plan_path }}"
       - "-PlanDir"

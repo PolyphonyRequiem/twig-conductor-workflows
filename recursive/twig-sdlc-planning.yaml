@@ -42,20 +42,16 @@ workflow:
     work_item_id:
       type: number
       required: false
-      description: ADO work item ID (Epic or Issue) to plan.
+      description: ADO work item ID (Epic, Issue, or Task) to plan.
     prompt:
       type: string
       required: false
       description: Natural language description of what to build. Creates a new Epic.
-    skip_plan_review:
-      type: boolean
-      required: false
-      default: false
-      description: Skip the human plan approval gate.
-    plan_path:
+    intent:
       type: string
       required: false
-      description: Path to an already-approved plan file; passed to intake to skip re-planning.
+      default: resume
+      description: User intent — new, redo, or resume.
   context:
     mode: explicit
   limits:
@@ -93,24 +89,19 @@ agents:
     input:
       - workflow.input.work_item_id?
       - workflow.input.prompt?
-      - workflow.input.plan_path?
     system_prompt: !file ../prompts/intake.system.md
     prompt: !file ../prompts/intake.prompt.md
     output:
-      epic_id:
+      work_item_id:
         type: number
-        description: The ADO Epic or Issue ID
-      epic_title:
+        description: The ADO work item ID (existing or newly created)
+      title:
         type: string
-      epic_description:
+      description:
         type: string
       existing_issues:
         type: array
       item_type:
-        type: string
-      plan_already_approved:
-        type: boolean
-      existing_plan_path:
         type: string
     routes:
       - to: architect
@@ -215,7 +206,7 @@ agents:
     input:
       - technical_reviewer.output
       - readability_reviewer.output
-      - workflow.input.skip_plan_review?
+      - workflow.input.intent?
       - architect.output
     system_prompt: !file ../prompts/review-router.system.md
     prompt: !file ../prompts/review-router.prompt.md
@@ -277,7 +268,7 @@ agents:
     prompt: |
       Create **Issues and Tasks** from the plan.
 
-      **Work Item:** #{{ intake.output.epic_id }} — {{ intake.output.epic_title }}
+      **Work Item:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
       **Plan:** {{ architect.output.plan_path }}
 
       Read the plan document and create the full ADO hierarchy:
@@ -331,8 +322,8 @@ for_each:
 # OUTPUT
 # =============================================================================
 output:
-  epic_id: "{{ intake.output.epic_id }}"
-  epic_title: "{{ intake.output.epic_title }}"
+  work_item_id: "{{ intake.output.work_item_id }}"
+  title: "{{ intake.output.title }}"
   plan_path: "{{ architect.output.plan_path if architect is defined else '' }}"
   plan_summary: "{{ architect.output.plan_summary if architect is defined else '' }}"
   issues_created: "{{ work_tree_seeder.output.total_issues if work_tree_seeder is defined else 0 }}"

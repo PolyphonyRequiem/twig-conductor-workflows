@@ -7,7 +7,7 @@ Read the approved plan and extract its metadata.
 If `{{ intake.output.existing_plan_path }}` is empty or the item type is "Epic",
 check `docs/projects/*.plan.md` for plans matching child Issue IDs.
 
-1. Run: `twig set {{ intake.output.epic_id }} --output json` then `twig tree --depth 1 --output json`
+1. Run: `twig set {{ intake.output.work_item_id }} --output json` then `twig tree --depth 1 --output json`
 2. Get child Issue IDs from the tree
 3. For each `.plan.md` in `docs/projects/`, parse YAML frontmatter for `work_item_id`
 4. Match plans to child Issues
