@@ -1,0 +1,116 @@
+# plan-seeding.yaml — Create work items from plan
+#
+# Creates ADO Issues/Tasks, tags with PG-N, writes descriptions,
+# fans out to child planners for complex children.
+#
+# Idempotency: seeding_check at entry skips if children already exist.
+workflow:
+  name: plan-seeding
+  description: Seed ADO work items from plan, tag PGs, fan-out to child planners
+  metadata:
+    dashboard_hidden: true
+  entry_point: seeding_check
+  runtime:
+    provider: copilot
+    default_model: claude-sonnet-4.6
+    mcp_servers:
+      twig:
+        command: twig-mcp
+        tools: ["*"]
+  input:
+    work_item_id:
+      type: number
+      required: true
+    plan_path:
+      type: string
+      required: true
+    pr_groups:
+      type: array
+      required: false
+      default: []
+      description: PR groups from execution planner [{name, task_ids, issue_ids}]
+    intent:
+      type: string
+      required: false
+      default: resume
+  context:
+    mode: explicit
+  limits:
+    max_iterations: 50
+
+agents:
+  # ── IDEMPOTENCY CHECK ─────────────────────────────────────────
+  - name: seeding_check
+    description: Check if children are already seeded
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/check-seeding.ps1"
+        - "-WorkItemId"
+        - "{{ workflow.input.work_item_id }}"
+    output:
+      seeded:
+        type: boolean
+      child_count:
+        type: number
+      children_summary:
+        type: object
+    routes:
+      - to: $end
+        when: "{{ output.seeded and workflow.input.intent == 'resume' }}"
+      - to: work_tree_seeder
+
+  # ── WORK TREE SEEDER ──────────────────────────────────────────
+  - name: work_tree_seeder
+    description: Creates ADO Items from plan with PG tags and descriptions
+    model: claude-sonnet-4.6
+    input:
+      - workflow.input
+    system_prompt: !file ../prompts/work-tree-seeder.system.md
+    prompt: !file ../prompts/work-tree-seeder.prompt.md
+    output:
+      children:
+        type: array
+        description: Created/reused Items [{id, title, type, task_count}]
+      total_issues:
+        type: number
+      total_tasks:
+        type: number
+      plan_path:
+        type: string
+    routes:
+      - to: plan_children
+
+# =============================================================================
+# FOR_EACH — Fan out to plan-child.yaml for each child
+# =============================================================================
+for_each:
+  - name: plan_children
+    type: for_each
+    source: work_tree_seeder.output.children
+    as: child
+    max_concurrent: 1
+    agent:
+      name: plan_single_child
+      type: workflow
+      workflow: ./plan-child.yaml
+      input:
+        - work_tree_seeder.output
+      input_mapping:
+        work_item_id: "{{ child.id }}"
+        title: "{{ child.title }}"
+        type: "{{ child.type }}"
+        task_count: "{{ child.task_count | default(0) }}"
+        plan_path: "{{ work_tree_seeder.output.plan_path }}"
+        intent: "{{ workflow.input.intent }}"
+    routes:
+      - to: $end
+
+output:
+  work_item_id: "{{ workflow.input.work_item_id }}"
+  children: "{{ work_tree_seeder.output.children | json if work_tree_seeder is defined else '[]' }}"
+  total_issues: "{{ work_tree_seeder.output.total_issues if work_tree_seeder is defined else 0 }}"
+  total_tasks: "{{ work_tree_seeder.output.total_tasks if work_tree_seeder is defined else 0 }}"

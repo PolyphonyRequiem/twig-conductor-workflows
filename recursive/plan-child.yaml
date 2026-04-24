@@ -1,0 +1,163 @@
+# plan-child.yaml — Plan a single child work item
+#
+# Routes based on complexity: complex children (>=3 tasks) get a plan
+# document; simple children get enriched descriptions.
+#
+# Replaces plan-issue.yaml with type-agnostic, complexity-based routing.
+workflow:
+  name: plan-child
+  description: Plan a single child — complexity-routed to architect or description enricher
+  metadata:
+    dashboard_hidden: true
+  entry_point: task_check
+  runtime:
+    provider: copilot
+    default_model: claude-sonnet-4.6
+    mcp_servers:
+      twig:
+        command: twig-mcp
+        tools: ["*"]
+  input:
+    work_item_id:
+      type: number
+      required: true
+    title:
+      type: string
+      required: true
+    type:
+      type: string
+      required: false
+      default: "Issue"
+    task_count:
+      type: number
+      required: false
+      default: 0
+    plan_path:
+      type: string
+      required: false
+      default: ""
+      description: Parent plan for context
+    intent:
+      type: string
+      required: false
+      default: resume
+  context:
+    mode: explicit
+  limits:
+    max_iterations: 20
+
+agents:
+  # ── SKIP CHECK ────────────────────────────────────────────────
+  - name: task_check
+    description: Check if this child already has tasks — skip if so
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/assess-complexity.ps1"
+        - "-WorkItemId"
+        - "{{ workflow.input.work_item_id }}"
+    output:
+      work_item_id:
+        type: number
+      title:
+        type: string
+      type:
+        type: string
+      task_count:
+        type: number
+      needs_plan:
+        type: boolean
+    routes:
+      - to: $end
+        when: "{{ output.task_count > 0 and workflow.input.intent == 'resume' }}"
+      - to: child_architect
+        when: "{{ output.needs_plan }}"
+      - to: description_enricher
+
+  # ── CHILD ARCHITECT (complex children) ────────────────────────
+  - name: child_architect
+    description: Creates a plan document for a complex child
+    model: claude-opus-4.6-1m
+    input:
+      - workflow.input
+      - task_check.output
+    system_prompt: !file prompts/issue-planner.system.md
+    prompt: !file prompts/issue-planner.prompt.md
+    output:
+      tasks:
+        type: array
+      task_count:
+        type: number
+      planning_summary:
+        type: string
+    routes:
+      - to: child_reviewer
+
+  # ── CHILD REVIEWER ────────────────────────────────────────────
+  - name: child_reviewer
+    description: Reviews the task decomposition
+    model: claude-sonnet-4.6
+    input:
+      - child_architect.output
+      - workflow.input
+    system_prompt: |
+      You review child-level task decomposition plans.
+      Check completeness, granularity, descriptions, and test coverage.
+    prompt: !file prompts/plan-reviewer.prompt.md
+    output:
+      score:
+        type: number
+      feedback:
+        type: string
+      approved:
+        type: boolean
+    routes:
+      - to: child_architect
+        when: "{{ not output.approved }}"
+      - to: $end
+
+  # ── DESCRIPTION ENRICHER (simple children) ────────────────────
+  - name: description_enricher
+    description: Enriches a simple child's work item description
+    model: claude-sonnet-4.6
+    input:
+      - workflow.input
+      - task_check.output
+    prompt: |
+      Enrich the description for work item #{{ workflow.input.work_item_id }}
+      ({{ workflow.input.title }}).
+
+      {% if workflow.input.plan_path %}
+      Read the parent plan at `{{ workflow.input.plan_path }}` for context about
+      what this item should accomplish.
+      {% endif %}
+
+      1. `twig set {{ workflow.input.work_item_id }} --output json`
+      2. Read the current description
+      3. Write a rich description with:
+         - `## Scope` — what this item covers
+         - `## Approach` — how to implement
+         - `## Acceptance Criteria` — how to verify
+      4. `twig update System.Description "<markdown>" --format markdown`
+
+      If the item has no child Tasks and needs them, create 2-5 Tasks:
+      ```
+      twig seed chain --titles "Task 1" "Task 2" --type Task
+      twig seed publish --all
+      ```
+    output:
+      enriched:
+        type: boolean
+      tasks_created:
+        type: number
+    routes:
+      - to: $end
+
+output:
+  work_item_id: "{{ workflow.input.work_item_id }}"
+  tasks: "{{ child_architect.output.tasks | json if child_architect is defined else '[]' }}"
+  task_count: "{{ child_architect.output.task_count if child_architect is defined else description_enricher.output.tasks_created if description_enricher is defined else workflow.input.task_count }}"
+  planning_summary: "{{ child_architect.output.planning_summary if child_architect is defined else 'Description enriched' }}"

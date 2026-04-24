@@ -1,0 +1,325 @@
+# plan-design.yaml — Solution design sub-workflow
+#
+# Architect creates plan → reviewers validate → human approves →
+# execution planner defines PGs. Can loop architect ↔ exec_planner
+# if PGs can't be self-contained.
+#
+# Idempotency: plan_check at entry skips if approved plan exists.
+workflow:
+  name: plan-design
+  description: Design solution, review, approve, define PR groups
+  metadata:
+    dashboard_hidden: true
+  entry_point: plan_check
+  runtime:
+    provider: copilot
+    default_model: claude-sonnet-4.6
+  input:
+    work_item_id:
+      type: number
+      required: true
+    title:
+      type: string
+      required: false
+      default: ""
+    description:
+      type: string
+      required: false
+      default: ""
+    item_type:
+      type: string
+      required: false
+      default: ""
+    existing_issues:
+      type: array
+      required: false
+      default: []
+    intent:
+      type: string
+      required: false
+      default: resume
+    prompt:
+      type: string
+      required: false
+      default: ""
+  context:
+    mode: explicit
+  limits:
+    max_iterations: 40
+
+agents:
+  # ── IDEMPOTENCY CHECK ─────────────────────────────────────────
+  - name: plan_check
+    description: Check if an approved plan already exists
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/check-plan.ps1"
+        - "-WorkItemId"
+        - "{{ workflow.input.work_item_id }}"
+    output:
+      plan_exists:
+        type: boolean
+      plan_path:
+        type: string
+      plan_source:
+        type: string
+    routes:
+      - to: execution_planner
+        when: "{{ output.plan_exists and workflow.input.intent == 'resume' }}"
+      - to: architect
+
+  # ── ARCHITECT ─────────────────────────────────────────────────
+  - name: architect
+    description: Researches codebase and creates solution design
+    model: claude-opus-4.6-1m
+    input:
+      - workflow.input
+      - review_router.output?
+      - plan_approval.output?
+      - open_questions_gate.output?
+      - execution_planner.output?
+    system_prompt: !file ../prompts/architect.system.md
+    prompt: !file ../prompts/architect.prompt.md
+    output:
+      plan_path:
+        type: string
+      plan_summary:
+        type: string
+      issue_count:
+        type: number
+      pr_group_count:
+        type: number
+      total_estimated_loc:
+        type: number
+      has_blocking_questions:
+        type: boolean
+      open_questions_summary:
+        type: string
+      revision_notes:
+        type: string
+      plan_revision_count:
+        type: number
+    routes:
+      - to: open_questions_gate
+        when: "{{ output.has_blocking_questions }}"
+      - to: technical_reviewer
+
+  # ── OPEN QUESTIONS GATE ───────────────────────────────────────
+  - name: open_questions_gate
+    type: human_gate
+    description: Architect has blocking questions needing human input
+    input:
+      - architect.output
+    prompt: |
+      ## Open Questions Requiring Your Input
+      **Plan Document:** {{ architect.output.plan_path }}
+      {{ architect.output.open_questions_summary }}
+    options:
+      - label: "Proceed Without Answering"
+        value: proceed
+        route: technical_reviewer
+      - label: "Provide Input & Revise"
+        value: provide_input
+        route: architect
+        prompt_for: feedback
+      - label: "Abort Planning"
+        value: abort
+        route: $end
+
+  # ── REVIEWERS ─────────────────────────────────────────────────
+  - name: technical_reviewer
+    description: Validates technical accuracy using P11 rubric
+    model: claude-opus-4.6-1m
+    input:
+      - architect.output
+      - workflow.input
+    system_prompt: !file ../prompts/technical-reviewer.system.md
+    prompt: !file ../prompts/technical-reviewer.prompt.md
+    output:
+      dimensions:
+        type: object
+      score:
+        type: number
+      critical_issues:
+        type: array
+      feedback:
+        type: string
+    routes:
+      - to: readability_reviewer
+
+  - name: readability_reviewer
+    description: Validates clarity and structure using P11 rubric
+    model: claude-sonnet-4.6
+    input:
+      - architect.output
+    system_prompt: !file ../prompts/readability-reviewer.system.md
+    prompt: !file ../prompts/readability-reviewer.prompt.md
+    output:
+      dimensions:
+        type: object
+      score:
+        type: number
+      critical_issues:
+        type: array
+      feedback:
+        type: string
+    routes:
+      - to: review_router
+
+  # ── REVIEW ROUTER (deterministic script) ──────────────────────
+  - name: review_router
+    description: Gating math — scores, blocking issues, routing
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/review-router.ps1"
+        - "-TechScore"
+        - "{{ technical_reviewer.output.score }}"
+        - "-ReadScore"
+        - "{{ readability_reviewer.output.score }}"
+        - "-TechCritical"
+        - "{{ technical_reviewer.output.critical_issues | json }}"
+        - "-ReadCritical"
+        - "{{ readability_reviewer.output.critical_issues | json }}"
+        - "-RevisionCount"
+        - "{{ architect.output.plan_revision_count | default(0) }}"
+        - "-Intent"
+        - "{{ workflow.input.intent }}"
+    output:
+      tech_score:
+        type: number
+      read_score:
+        type: number
+      blocking_issue_count:
+        type: number
+      both_pass:
+        type: boolean
+      skip_approval:
+        type: boolean
+      combined_feedback:
+        type: string
+      revision_count:
+        type: number
+      route:
+        type: string
+    routes:
+      - to: architect
+        when: "{{ output.route == 'architect' }}"
+      - to: revision_cap_gate
+        when: "{{ output.route == 'revision_cap_gate' }}"
+      - to: plan_status_updater
+        when: "{{ output.route == 'plan_status_updater' }}"
+      - to: plan_approval
+
+  # ── REVISION CAP GATE ─────────────────────────────────────────
+  - name: revision_cap_gate
+    type: human_gate
+    description: 2+ revisions without passing — human decides
+    input:
+      - review_router.output
+      - architect.output
+    prompt: |
+      The plan has been revised {{ review_router.output.revision_count }} times
+      but still has {{ review_router.output.blocking_issue_count }} blocking issues.
+      **Tech:** {{ review_router.output.tech_score }}/100 | **Read:** {{ review_router.output.read_score }}/100
+      {{ review_router.output.combined_feedback }}
+    options:
+      - label: "Force approve and proceed"
+        value: force_approve
+        route: plan_status_updater
+      - label: "One more revision (with guidance)"
+        value: revise
+        route: architect
+        prompt_for: feedback
+      - label: "Abort"
+        value: abort
+        route: $end
+
+  # ── PLAN APPROVAL ─────────────────────────────────────────────
+  - name: plan_approval
+    type: human_gate
+    description: Human reviews and approves the plan
+    input:
+      - architect.output
+      - review_router.output
+    prompt: |
+      The implementation plan is ready for review.
+      **Plan:** {{ architect.output.plan_path }}
+      **Summary:** {{ architect.output.plan_summary }}
+      **Issues:** {{ architect.output.issue_count }} | **PGs:** {{ architect.output.pr_group_count }} | **Est. LoC:** {{ architect.output.total_estimated_loc }}
+      **Tech:** {{ review_router.output.tech_score }}/100 | **Read:** {{ review_router.output.read_score }}/100
+    options:
+      - label: "Approve — proceed to execution planning"
+        value: approved
+        route: plan_status_updater
+      - label: "Revise — send back to architect"
+        value: revise
+        route: architect
+        prompt_for: feedback
+      - label: "Reject — stop workflow"
+        value: rejected
+        route: $end
+
+  # ── PLAN STATUS UPDATER (script) ──────────────────────────────
+  - name: plan_status_updater
+    description: Updates plan file status from Draft to Approved
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-Command"
+        - |
+          $plan = '{{ architect.output.plan_path }}'
+          if (Test-Path $plan) {
+            $content = Get-Content $plan -Raw
+            $content = $content -replace '>\s*\*{0,2}Status\*{0,2}:\s*.+', '> **Status**: ✅ Approved'
+            Set-Content $plan $content -NoNewline
+          }
+          @{status='approved'; plan_path=$plan} | ConvertTo-Json
+    output:
+      status:
+        type: string
+      plan_path:
+        type: string
+    routes:
+      - to: execution_planner
+
+  # ── EXECUTION PLANNER ─────────────────────────────────────────
+  - name: execution_planner
+    description: Defines PR groups from the approved plan
+    model: claude-sonnet-4.6
+    input:
+      - workflow.input
+      - architect.output?
+      - plan_check.output?
+    system_prompt: !file ../prompts/execution-planner.system.md
+    prompt: !file ../prompts/execution-planner.prompt.md
+    output:
+      pr_groups:
+        type: array
+      pr_group_count:
+        type: number
+      needs_revision:
+        type: boolean
+      revision_requests:
+        type: string
+      execution_plan_summary:
+        type: string
+    routes:
+      - to: architect
+        when: "{{ output.needs_revision }}"
+      - to: $end
+
+output:
+  plan_path: "{{ architect.output.plan_path if architect is defined else plan_check.output.plan_path }}"
+  pr_groups: "{{ (execution_planner.output.pr_groups | json) if execution_planner is defined else '[]' }}"
+  pr_group_count: "{{ execution_planner.output.pr_group_count if execution_planner is defined else 0 }}"
+  plan_summary: "{{ architect.output.plan_summary if architect is defined else '' }}"

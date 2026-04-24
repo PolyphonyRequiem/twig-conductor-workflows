@@ -1,0 +1,119 @@
+# planning-pr.yaml — Commit and link plan artifacts
+#
+# Commits plan documents to a planning/<id> branch, pushes, links
+# the plan artifact to the work item, and creates a PR.
+#
+# Idempotency: branch_check at entry skips if branch already exists.
+workflow:
+  name: planning-pr
+  description: Commit plans, push branch, link artifacts, create PR
+  metadata:
+    dashboard_hidden: true
+  entry_point: branch_check
+  runtime:
+    provider: copilot
+    default_model: claude-sonnet-4.6
+  input:
+    work_item_id:
+      type: number
+      required: true
+    plan_path:
+      type: string
+      required: true
+    title:
+      type: string
+      required: false
+      default: ""
+    intent:
+      type: string
+      required: false
+      default: resume
+  context:
+    mode: explicit
+  limits:
+    max_iterations: 10
+
+agents:
+  # ── IDEMPOTENCY CHECK ─────────────────────────────────────────
+  - name: branch_check
+    description: Check if planning branch already exists
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/check-branch.ps1"
+        - "-WorkItemId"
+        - "{{ workflow.input.work_item_id }}"
+    output:
+      branch_exists:
+        type: boolean
+      branch_name:
+        type: string
+    routes:
+      - to: $end
+        when: "{{ output.branch_exists and workflow.input.intent == 'resume' }}"
+      - to: branch_pusher
+
+  # ── BRANCH PUSHER (script) ────────────────────────────────────
+  - name: branch_pusher
+    description: Commit plan, push branch, link artifact to work item
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/push-planning-branch.ps1"
+        - "-WorkItemId"
+        - "{{ workflow.input.work_item_id }}"
+        - "-PlanPath"
+        - "{{ workflow.input.plan_path }}"
+    output:
+      branch_name:
+        type: string
+      pushed:
+        type: boolean
+      plan_url:
+        type: string
+      linked:
+        type: boolean
+    routes:
+      - to: pr_submit
+
+  # ── PR SUBMIT ─────────────────────────────────────────────────
+  - name: pr_submit
+    description: Creates a GitHub PR for the planning branch
+    model: claude-sonnet-4.6
+    input:
+      - branch_pusher.output
+      - workflow.input
+    prompt: |
+      Create a GitHub PR for the planning branch.
+
+      **Work Item:** #{{ workflow.input.work_item_id }} — {{ workflow.input.title }}
+      **Branch:** {{ branch_pusher.output.branch_name }}
+      **Plan:** {{ branch_pusher.output.plan_url }}
+
+      Create the PR:
+      ```
+      gh pr create --base main --head {{ branch_pusher.output.branch_name }} \
+        --title "docs: plan for #{{ workflow.input.work_item_id }} — {{ workflow.input.title }}" \
+        --body "## Planning Artifacts\n\nSolution design and implementation plan for #{{ workflow.input.work_item_id }}.\n\n**Plan document:** {{ branch_pusher.output.plan_url }}\n\nThis PR contains planning artifacts only — no code changes." \
+        --json number,url
+      ```
+
+      Output the PR number and URL.
+    output:
+      pr_number:
+        type: number
+      pr_url:
+        type: string
+    routes:
+      - to: $end
+
+output:
+  branch_name: "{{ branch_pusher.output.branch_name if branch_pusher is defined else branch_check.output.branch_name }}"
+  plan_url: "{{ branch_pusher.output.plan_url if branch_pusher is defined else '' }}"
+  pr_number: "{{ pr_submit.output.pr_number if pr_submit is defined else 0 }}"
