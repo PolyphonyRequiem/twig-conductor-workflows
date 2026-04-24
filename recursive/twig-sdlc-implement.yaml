@@ -55,11 +55,15 @@ agents:
   # ── PREFLIGHT ─────────────────────────────────────────────────────
   - name: duplicate_check
     description: Preflight — abort if another conductor run already owns this work item
-    model: claude-sonnet-4.6
-    input:
-      - workflow.input.work_item_id?
-    system_prompt: !file ../prompts/duplicate-check.system.md
-    prompt: !file ../prompts/duplicate-check.prompt.md
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - ".github/skills/twig-sdlc/assets/scripts/check-duplicate-session.ps1"
+        - "-WorkItemId"
+        - "{{ workflow.input.work_item_id | default(0) }}"
     output:
       is_duplicate:
         type: boolean
@@ -92,10 +96,10 @@ agents:
       item_type:
         type: string
     routes:
-      - to: work_tree_seeder
+      - to: work_tree_loader
 
   # ── WORK TREE LOADER (deterministic — no LLM) ──────────────────────
-  - name: work_tree_seeder
+  - name: work_tree_loader
     type: script
     description: Loads ADO work tree and discovers PG structure from work item tags
     script:
@@ -114,7 +118,7 @@ agents:
     description: Outer orchestrator — PR groups, branches, issue closure after merge
     model: claude-sonnet-4.6
     input:
-      - work_tree_seeder.output
+      - work_tree_loader.output
       - intake.output
       - intake.output
       - pr_group_manager.output?
@@ -154,7 +158,7 @@ agents:
     model: claude-sonnet-4.6
     input:
       - pr_group_manager.output
-      - work_tree_seeder.output
+      - work_tree_loader.output
       - intake.output
       - intake.output
       - task_manager.output?
@@ -349,7 +353,7 @@ agents:
       - pr_group_manager.output
       - task_manager.output?
       - intake.output
-      - work_tree_seeder.output
+      - work_tree_loader.output
     system_prompt: !file ../prompts/pr-submit.system.md
     prompt: !file ../prompts/pr-submit.prompt.md
     output:
@@ -443,7 +447,7 @@ agents:
     description: Verifies all PR groups merged before close-out
     model: claude-sonnet-4.6
     input:
-      - work_tree_seeder.output
+      - work_tree_loader.output
       - pr_group_manager.output
       - intake.output
       - pr_finalizer.output?
@@ -467,8 +471,31 @@ agents:
         when: "{{ output.verified }}"
       - to: pr_group_manager
         when: "{{ not output.verified and output.verification_attempt < 10 }}"
-      - to: $end
+      - to: verification_failure_gate
         when: "{{ not output.verified and output.verification_attempt >= 10 }}"
+
+  # ── VERIFICATION FAILURE GATE ──────────────────────────────────
+  - name: verification_failure_gate
+    type: human_gate
+    description: PR verification failed after 10 attempts — human decides
+    input:
+      - pr_finalizer.output
+    prompt: |
+      PR verification has failed after {{ pr_finalizer.output.verification_attempt }} attempts.
+      **Unmerged PGs:** {{ pr_finalizer.output.unmerged_pr_groups | json }}
+      **Orphaned branches:** {{ pr_finalizer.output.orphaned_branches | json }}
+      **State violations:** {{ pr_finalizer.output.state_violations | json }}
+      **Summary:** {{ pr_finalizer.output.summary }}
+    options:
+      - label: "Retry verification"
+        value: retry
+        route: pr_finalizer
+      - label: "Accept as-is and proceed"
+        value: accept
+        route: $end
+      - label: "Abort"
+        value: abort
+        route: $end
 
 output:
   completed_prs: "{{ pr_group_manager.output.completed_prs | json if pr_group_manager is defined else '[]' }}"

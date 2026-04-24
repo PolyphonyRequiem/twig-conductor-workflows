@@ -18,27 +18,35 @@ functional even if imperfect) or escalate to the user via a clear note in your
 feedback. Do NOT reject indefinitely — 2 rejections is the cap before the coder
 has had enough guidance to succeed or fail definitively.
 
-## Review Tasks
+## Scoring Rubric (P11 — Code Review)
 
-1. **Requirements Verification**
-   - Verify that all requirements from the task description are met
-   - Check that acceptance criteria are satisfied
-   - Ensure no requirements were missed
+Score each dimension on a 1-5 scale. Provide a brief rationale per dimension.
 
-2. **Code Quality**
-   - Clean, idiomatic C#? Follows project conventions (sealed classes, primary constructors)?
-   - No reflection, JSON uses TwigJsonContext? AOT-compatible?
-   - Proper error handling at system boundaries?
+| Dimension | Weight | What to evaluate |
+|-----------|--------|-----------------|
+| **Correctness** (30%) | 1-5 | Logic is right, handles edge cases, requirements met |
+| **Safety** (25%) | 1-5 | No regressions, AOT/trim safe, no reflection, uses TwigJsonContext |
+| **Completeness** (20%) | 1-5 | All acceptance criteria addressed, tests written |
+| **Conventions** (15%) | 1-5 | Follows project patterns (sealed, primary constructors, naming) |
+| **Reviewability** (10%) | 1-5 | Changes are minimal, well-scoped, clear commit messages |
 
-3. **Edge Case Verification**
-   - Confirm edge cases were handled appropriately
-   - Check error handling is comprehensive
-   - Verify no stale references — renamed/removed methods updated at ALL call sites
+**Composite score** = weighted sum mapped to 0-100.
+**Critical issue** = any dimension scored ≤ 2 → REQUEST_CHANGES.
+**Pass** = no dimension ≤ 2 and composite ≥ 80 → APPROVE.
 
-4. **Test Coverage**
-   - Verify tests cover the new functionality
-   - Check that tests cover edge cases and error conditions
-   - Run `dotnet test --settings test.runsettings` to verify all tests pass
+Run `dotnet test --settings test.runsettings` to verify all tests pass.
+Note what was done well — strengths reinforce good patterns.
 
-Provide APPROVE or REQUEST_CHANGES with specific feedback.
-Also note what was done well — strengths help reinforce good patterns.
+## Output
+
+```json
+{
+  "dimensions": { "correctness": {"score": 4, "rationale": "..."}, ... },
+  "score": 88,
+  "decision": "APPROVE",
+  "feedback": "...",
+  "issues": [],
+  "approved": true,
+  "strengths": ["..."]
+}
+```

@@ -1,32 +1,39 @@
 Review the PR: {{ pr_submit.output.pr_url }}
-**Plan:** Read `{{ intake.output.work_item_id }}` for the design intent.
+**Work Item:** #{{ intake.output.work_item_id }}
 
-## Holistic Review Tasks
+## Scoring Rubric (P11 — Code Review)
 
-1. **Architecture Review**
-   - Do changes fit the overall design from the plan?
-   - Proper separation of concerns?
-   - Components integrate correctly?
+Score each dimension on a 1-5 scale. Provide a brief rationale per dimension.
 
-2. **Cross-Cutting Concerns**
-   - Error handling, logging, security consistent across all changes?
-   - Resource management (disposal, cancellation tokens)?
+| Dimension | Weight | What to evaluate |
+|-----------|--------|-----------------|
+| **Correctness** (30%) | 1-5 | Logic is right, components integrate correctly, edge cases handled |
+| **Safety** (25%) | 1-5 | No regressions, error handling consistent, AOT/trim safe, resource management |
+| **Completeness** (20%) | 1-5 | All acceptance criteria from the work item addressed, tests cover changes |
+| **Conventions** (15%) | 1-5 | Consistent patterns, naming, style across all changes in the PR |
+| **Reviewability** (10%) | 1-5 | Changes well-scoped, commit messages clear, git history clean |
 
-3. **Code Consistency**
-   - Consistent patterns across all changes?
-   - Naming conventions uniform?
-   - Code style consistent with existing codebase?
+**Composite score** = weighted sum mapped to 0-100.
+**Critical issue** = any dimension scored ≤ 2 → REQUEST_CHANGES.
+**Pass** = no dimension ≤ 2 and composite ≥ 80 → APPROVE.
 
-4. **Test Coverage**
-   - Overall coverage adequate across the PR?
-   - Integration between components tested?
-   - Run targeted tests for changed directories:
-     `dotnet test tests/<RelevantProject>.Tests --no-build --settings test.runsettings`
-     (full suite runs in CI — only validate locally that relevant tests pass)
+Review all commits: `gh pr diff {{ pr_submit.output.pr_number }}`
+Run targeted tests: `dotnet test tests/<RelevantProject>.Tests --no-build --settings test.runsettings`
+Note what was done well — strengths reinforce good patterns.
 
-5. **Git History**
-   - Review all commits: `gh pr diff {{ pr_submit.output.pr_number }}`
-   - Commit messages clear and descriptive?
+## Output
 
-Provide APPROVE or REQUEST_CHANGES.
-Also note what was done well — strengths help reinforce good patterns.
+```json
+{
+  "dimensions": { "correctness": {"score": 4, "rationale": "..."}, ... },
+  "score": 88,
+  "decision": "APPROVE",
+  "feedback": "...",
+  "issues": [],
+  "approved": true,
+  "strengths": [],
+  "architecture_issues": [],
+  "code_issues": [],
+  "test_gaps": []
+}
+```

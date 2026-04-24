@@ -1,15 +1,37 @@
 Review issue #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }}.
-**Plan:** Read `{{ intake.output.work_item_id }}` for this issue's acceptance criteria.
+**Work Item:** #{{ intake.output.work_item_id }}
 **Completed Tasks:** {{ task_manager.output.completed_tasks | json }}
 **Reducer findings:** {{ reducer_issue.output.findings | join(", ") }}
 
-## Review Tasks
+## Scoring Rubric (P11 — Code Review, issue-level)
 
-1. **Acceptance Criteria** — Does the combined implementation satisfy the issue's requirements?
-2. **Cross-Cutting Concerns** — Error handling, logging, security consistent across tasks?
-3. **Integration** — Components from different tasks work together correctly?
-4. **Documentation** — Any new public APIs or behaviors documented?
-5. **Test Coverage** — Run `dotnet test --settings test.runsettings` to verify all tests pass
+Score each dimension on a 1-5 scale. This is a holistic review across all tasks.
 
-Provide APPROVE or REQUEST_CHANGES with specific feedback.
-Also note what was done well — strengths help reinforce good patterns.
+| Dimension | Weight | What to evaluate |
+|-----------|--------|-----------------|
+| **Correctness** (30%) | 1-5 | Combined implementation satisfies acceptance criteria |
+| **Safety** (25%) | 1-5 | No regressions, cross-task integration is sound, error handling consistent |
+| **Completeness** (20%) | 1-5 | All acceptance criteria met, edge cases covered, tests pass |
+| **Conventions** (15%) | 1-5 | Consistent patterns across all tasks, documentation updated |
+| **Reviewability** (10%) | 1-5 | Changes are coherent as a unit, easy to follow |
+
+**Composite score** = weighted sum mapped to 0-100.
+**Critical issue** = any dimension scored ≤ 2 → REQUEST_CHANGES.
+**Pass** = no dimension ≤ 2 and composite ≥ 80 → APPROVE.
+
+Run `dotnet test --settings test.runsettings` to verify all tests pass.
+Note what was done well — strengths reinforce good patterns.
+
+## Output
+
+```json
+{
+  "dimensions": { "correctness": {"score": 4, "rationale": "..."}, ... },
+  "score": 88,
+  "decision": "APPROVE",
+  "feedback": "...",
+  "issues": [],
+  "approved": true,
+  "strengths": []
+}
+```
