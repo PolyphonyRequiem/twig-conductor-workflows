@@ -20,53 +20,46 @@ The document should contain the following sections:
 15. PR Groups (reviewable PR clusters with sizing and ordering)
 16. References *(optional)*
 
-## Evaluation Criteria
+## Scoring Rubric (P11 — dimension-by-dimension)
 
-Focus exclusively on **structure and readability** — not technical accuracy:
+Score each dimension on a 1-5 scale. Provide a brief rationale per dimension.
+Focus exclusively on **structure and readability** — not technical accuracy.
 
-| Criteria | Description |
-|----------|-------------|
-| **Document Structure** | Does it follow the expected sections? Is information logically organized? |
-| **Clarity** | Is the writing clear, precise, and free of ambiguity? |
-| **Audience Fit** | Is the detail level appropriate for engineers and AI agents? |
-| **Decision Framing** | Are design decisions and open questions clearly framed with context? |
-| **Cohesion** | Does the document read as a unified work with connected sections? |
-| **Formatting** | Are tables, lists, and code references used effectively? |
-| **Executive Summary** | Does it convey the problem, approach, and outcome in one paragraph? |
-| **Plan Readability** | Are Issues, Tasks, and acceptance criteria clearly structured and easy to follow? |
-| **Traceability** | Do Tasks trace back to requirements and design goals? |
-| **Actionability** | After reading, would a developer or AI agent know exactly what to build? |
+| Dimension | Weight | What to evaluate |
+|-----------|--------|-----------------|
+| **Clarity** (30%) | 1-5 | Writing is clear, precise, free of ambiguity. No vague language. |
+| **Actionability** (25%) | 1-5 | After reading, a developer or AI agent knows exactly what to build. Tasks are concrete. |
+| **Structure** (20%) | 1-5 | Follows expected sections. Information logically organized. Tables, lists, code refs used well. |
+| **Traceability** (15%) | 1-5 | Requirements → Issues → Tasks → PGs mapping is clear and complete. |
+| **Scoping** (10%) | 1-5 | Boundaries explicit — what's in, what's out, what's deferred. Non-goals stated. |
+
+**Composite score** = weighted sum mapped to 0-100.
+**Critical issue** = any dimension scored ≤ 2.
 
 Do NOT evaluate technical correctness — a separate reviewer handles that.
 
-## Scoring rubric (calibration)
+## What counts as a CRITICAL issue (dimension ≤ 2)
 
-- **95–100** — Document is clear and executable. `critical_issues = []`.
-- **90–94** — Minor phrasing or formatting suggestions. `critical_issues = []`.
-- **80–89** — Real structural problems (e.g., missing required section, confusing
-  flow) that do not prevent execution. `critical_issues = []` unless an agent
-  genuinely could not proceed.
-- **<80** — Ambiguity severe enough to block execution. Populate `critical_issues`.
+A dimension scores ≤ 2 ONLY when:
+- A required section is missing (sections 1-6, 8, 12-15)
+- Ambiguity makes it impossible to proceed with implementation
+- Contradictory statements within the document
 
-**The default expectation is 92–98.** A well-structured plan lands here even if
-prose could be tightened. Do not dock for stylistic preferences.
+Do NOT score ≤ 2 for: optional sections absent, stylistic preferences,
+suggested rewording, or "could be clearer" observations.
 
-## What counts as a CRITICAL issue
+## Output
 
-Populate `critical_issues` ONLY when:
-
-- A required section is missing (sections 1–6, 8, 12–15 in the expected structure).
-- Ambiguity makes it impossible for a developer or AI agent to proceed.
-- Contradictory statements within the document.
-
-Do NOT populate `critical_issues` for:
-
-- Optional sections (7, 9, 10, 11, 16) being absent — they are explicitly optional.
-- Suggested rewording, tone preferences, or formatting polish.
-- "Could be clearer" or "would benefit from an example" — flag in `feedback`, not
-  `critical_issues`.
-- The absence of a section stating "No open questions" — if Open Questions section
-  exists and lists none, that is sufficient; do not demand affirmative phrasing.
-
-If no critical issues exist, set `critical_issues` to `[]`. That is the expected
-outcome.
+```json
+{
+  "dimensions": {
+    "clarity": {"score": 5, "rationale": "..."},
+    "actionability": {"score": 4, "rationale": "..."},
+    "structure": {"score": 4, "rationale": "..."},
+    "traceability": {"score": 3, "rationale": "..."},
+    "scoping": {"score": 5, "rationale": "..."}
+  },
+  "score": 91,
+  "critical_issues": [],
+  "feedback": "Advisory feedback here (not forwarded to architect)"
+}
