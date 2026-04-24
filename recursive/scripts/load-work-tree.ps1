@@ -86,6 +86,19 @@ foreach ($child in $children) {
 $prGroups = @()
 $planPaths = @()
 
+# Helper: check if a plan file's work_item_id matches a given ID
+function Get-PlanWorkItemId {
+    param([string]$Path)
+    $content = Get-Content $Path -Raw
+    if ($content -match '(?s)^---\s*\n(.*?)\n---') {
+        $fm = $Matches[1]
+        if ($fm -match 'work_item_id:\s*(\d+)') { return [int]$Matches[1] }
+    }
+    if ($content -match '\|\s*\*{0,2}Work\s*Item\*{0,2}\s*\|\s*#(\d+)') { return [int]$Matches[1] }
+    if ($content -match '\|\s*\*{0,2}Issue\*{0,2}\s*\|\s*#(\d+)') { return [int]$Matches[1] }
+    return $null
+}
+
 # Helper: extract PGs from a single plan file
 function Extract-PGsFromPlan {
     param([string]$Path, [array]$AllTasks, [array]$Issues, [int]$PGOffset)
@@ -131,37 +144,42 @@ function Extract-PGsFromPlan {
 }
 
 if ($PlanPath -and (Test-Path $PlanPath)) {
-    # Single plan path provided — use it directly
-    $planPaths = @($PlanPath)
+    # Check if this is an Epic-level plan (work_item_id matches the Epic/root item)
+    $planWiId = Get-PlanWorkItemId -Path $PlanPath
+    $isEpicPlan = ($planWiId -eq $WorkItemId) -and ($focus.type -eq 'Epic')
+
+    if ($isEpicPlan) {
+        # Epic-level plan defines the canonical PGs — use it exclusively
+        $planPaths = @($PlanPath)
+    }
+    elseif ($focus.type -eq 'Epic' -and $issues.Count -gt 0 -and (Test-Path $PlanDir)) {
+        # PlanPath is a child issue plan. For Epics, scan PlanDir for ALL child
+        # plans so we aggregate PGs across all Issues (backward compat).
+        Write-Warning "No Epic-level plan found. Aggregating PGs from child issue plans in $PlanDir."
+        $planFiles = Get-ChildItem "$PlanDir/*.plan.md" -ErrorAction SilentlyContinue
+        $issueIds = @($issues | ForEach-Object { $_.id })
+        foreach ($pf in $planFiles) {
+            $matchedId = Get-PlanWorkItemId -Path $pf.FullName
+            if ($matchedId -and ($issueIds -contains $matchedId)) {
+                $planPaths += $pf.FullName
+            }
+        }
+        # Ensure the explicitly provided PlanPath is included
+        if ($planPaths -notcontains (Resolve-Path $PlanPath).Path) {
+            $planPaths = @($PlanPath) + $planPaths
+        }
+    }
+    else {
+        # Issue-level run or non-Epic — single plan is sufficient
+        $planPaths = @($PlanPath)
+    }
 }
 elseif ($issues.Count -gt 0 -and (Test-Path $PlanDir)) {
-    # Epic with child Issues — auto-discover plans per Issue via frontmatter or table metadata
+    # No PlanPath — auto-discover plans per Issue via frontmatter or table metadata
     $planFiles = Get-ChildItem "$PlanDir/*.plan.md" -ErrorAction SilentlyContinue
     $issueIds = @($issues | ForEach-Object { $_.id })
     foreach ($pf in $planFiles) {
-        $content = Get-Content $pf.FullName -Raw
-        $matchedId = $null
-
-        # Try YAML frontmatter first (preferred)
-        if ($content -match '(?s)^---\s*\n(.*?)\n---') {
-            $fm = $Matches[1]
-            if ($fm -match 'work_item_id:\s*(\d+)') {
-                $matchedId = [int]$Matches[1]
-            }
-        }
-
-        # Fallback: table-based metadata (e.g. "| **Work Item** | #2016 |")
-        if (-not $matchedId) {
-            if ($content -match '\|\s*\*{0,2}Work\s*Item\*{0,2}\s*\|\s*#(\d+)') {
-                $matchedId = [int]$Matches[1]
-            }
-            # Also try "| **Issue** | #XXXX" pattern
-            elseif ($content -match '\|\s*\*{0,2}Issue\*{0,2}\s*\|\s*#(\d+)') {
-                $matchedId = [int]$Matches[1]
-            }
-        }
-
-        # Match to any child Issue ID
+        $matchedId = Get-PlanWorkItemId -Path $pf.FullName
         if ($matchedId -and ($issueIds -contains $matchedId)) {
             $planPaths += $pf.FullName
         }

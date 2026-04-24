@@ -31,7 +31,8 @@ Do NOT assume implementing agents have already transitioned the Epic.
    > **Why safe:** Verification was already performed during the original close-out run that transitioned the item to Done.
    > Additionally, the upstream `pr_finalizer` gate already confirmed PR merge state; re-running verification risks false-positive STOP conditions.
    > **When this triggers:** Re-runs, retries, manual workflow restarts, or manual Done transitions.
-   > **What is NOT skipped:** Steps 5–10 always execute (observations, git push, tagging).
+   > **What is NOT skipped:** Steps 5–8 always execute (observations, git push).
+   > Steps 9–10 (close commit, version tag) are guarded by `epic_completed`.
 1. **Verify all PRs are merged** (guard against premature close-out):
    - The pr_finalizer agent has already verified PR group completeness upstream.
      Review its `summary` and `state_violations` above.
@@ -49,8 +50,24 @@ Do NOT assume implementing agents have already transitioned the Epic.
 1c. **Verify all child items are Done** (guard against premature Epic closure):
    - `twig set {{ intake.output.epic_id }} --output json`
    - `twig tree --output json` — inspect all children
-   - If ANY child Issue or Task is NOT in state "Done", STOP and report which
-     items are still open — do NOT transition the Epic
+   - If ANY child Issue or Task is NOT in state "Done":
+     1. Set `epic_completed: false`
+     2. Record which items are still open (include IDs and current states)
+     3. **SKIP Steps 2, 3, 4, 9, and 10** — do NOT transition the Epic,
+        do NOT create a close commit, do NOT create a version tag
+     4. **Proceed to Step 1e** (state rollback), then **continue with Steps 5–8**
+        (observations and notes are still valuable for diagnosing the incomplete run)
+   - If ALL children are Done: set `epic_completed: true`, continue normally with Step 2
+1e. **Roll back orphaned "Doing" items** (prevents state leaks from incomplete runs):
+   - From the `twig tree` output in Step 1c, identify any child Issues in state
+     "Doing" whose IDs are NOT in the completed Issues list above:
+     {{ pr_group_manager.output.completed_issues | json }}
+   - For each such orphaned Issue:
+     1. `twig set <id> --output json`
+     2. `twig note --text "State rollback: reverted from Doing → To Do. Workflow ended without completing this item's PR group."`
+     3. `twig state "To Do" --force --output json`
+   - This ensures no Issues are left in a misleading "Doing" state after any
+     workflow run (crash, partial completion, or scope mismatch)
 2. **Check current state (idempotency):**
    - `twig set {{ intake.output.epic_id }} --output json` — read the current state
    - `git log --oneline -10` — check if a close commit already exists
@@ -90,11 +107,15 @@ Do NOT assume implementing agents have already transitioned the Epic.
 8. **Ensure all work is upstream:**
    - `git push` — push any pending commits (e.g., reduction sweeps, plan status updates)
    - If push fails (nothing to push), that's fine — continue
-9. **Final commit** (only if there are uncommitted changes):
+9. **Final commit** (only if there are uncommitted changes AND `epic_completed` is true):
+   - **If `epic_completed` is false**: **SKIP this step.** Do not create a close commit for incomplete work.
    - `git diff --stat HEAD` — check for changes
    - If changes exist: `git add -A && git commit -m "close: {{ intake.output.epic_title }}" && git push`
    - If no changes: skip commit
-10. **Tag the release** (after all pushes are complete):
+10. **Tag the release** (after all pushes are complete — **only if `epic_completed` is true**):
+   - **If `epic_completed` is false** (Step 1c found incomplete children): **SKIP this step entirely.**
+     The version tag will be created on a successful future run that completes all work.
+     Record in observations: "Version tag skipped — not all child items are Done."
    - Get the latest tag: `git tag -l "v*" --sort=-version:refname | head -1`
    - Parse the version components (major.minor.patch)
    - Determine increment based on item type ({{ intake.output.item_type }}):
