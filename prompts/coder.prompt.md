@@ -3,7 +3,7 @@ Implement the following task.
 **Description:** {{ task_manager.output.current_task_description }}
 **Issue:** #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }}
 **Branch:** {{ pr_group_manager.output.branch_name }}
-**Plan:** Read `{{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}` for full context.
+**Plan:** Read `{{ intake.output.work_item_id }}` for full context.
 {% if task_reviewer is defined and task_reviewer.output and not task_reviewer.output.approved %}
 **Previous review — fix these issues:**
 {{ task_reviewer.output.feedback | default('') }}

@@ -2,7 +2,7 @@ Close out the SDLC workflow.
 **Epic:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
 **Completed Issues:** {{ pr_group_manager.output.completed_issues | json }}
 **Completed PRs:** {{ pr_group_manager.output.completed_prs | json }}
-**Plan:** {{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}
+**Plan:** {{ intake.output.work_item_id }}
 
 **PR Finalization Verification:**
 - Verified: {{ pr_finalizer.output.verified }}
@@ -75,7 +75,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
 3. **Transition the Epic to Done** (only if not already Done):
    - `twig note --text "All work complete. <progress summary>"`
    - `twig state Done --output json`
-4. **Update the plan document** at `{{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}`:
+4. **Update the plan document** at `{{ intake.output.work_item_id }}`:
    - Change the Status line from its current value to `> **Status**: ✅ Done`
    - Mark all Epics and Tasks as DONE in the plan file
    - Add a completion section with date and summary

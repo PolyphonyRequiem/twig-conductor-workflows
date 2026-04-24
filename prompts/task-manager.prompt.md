@@ -8,7 +8,7 @@ Manage tasks within the current PR group.
 **Work Tree:**
 {{ work_tree_seeder.output.stdout }}
 
-**Plan:** {{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}
+**Plan:** {{ intake.output.work_item_id }}
 
 {% if task_manager is defined and task_manager.output %}
 **Current State:**

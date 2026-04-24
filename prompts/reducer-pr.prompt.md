@@ -1,7 +1,7 @@
 Perform a pre-PR reduction sweep for PR group {{ pr_group_manager.output.current_pr_group }}.
 **Epic:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
 **Branch:** {{ pr_group_manager.output.branch_name }}
-**Plan:** Read `{{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}`
+**Plan:** Read `{{ intake.output.work_item_id }}`
 Review ALL changes in this PR group (all commits on this branch vs main):
 1. `git diff main...HEAD --stat` to see all files changed
 2. `git diff main...HEAD` to review the full diff

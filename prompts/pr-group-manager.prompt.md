@@ -3,8 +3,6 @@ Manage PR group lifecycle.
 **Work Tree and PR Groups:**
 {{ work_tree_seeder.output.stdout }}
 
-**Plan:** {{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}
-
 {% if pr_group_manager is defined and pr_group_manager.output %}
 **Current State:**
 - PR Group: {{ pr_group_manager.output.current_pr_group }}
@@ -12,6 +10,23 @@ Manage PR group lifecycle.
 - Completed Issues: {{ pr_group_manager.output.completed_issues | json }}
 - Completed PRs: {{ pr_group_manager.output.completed_prs | json }}
 {% endif %}
+
+## Staleness Check (before starting each new PG)
+
+When starting a NEW PR group (not continuing one in progress), run the staleness
+assessor script to check if plan assumptions still hold:
+```
+pwsh -NoProfile -File scripts/assess-staleness.ps1 -PlanPath "<plan_path>" -FilesAffected "<comma-separated files in this PG>"
+```
+- If `classification=proceed`: continue normally.
+- If `classification=adapt`: note the changes in your progress_summary, adjust approach as needed.
+- If `classification=replan`: STOP and set action to `replan_needed` — the plan has drifted too far.
+
+## Branch Creation
+
+When creating a branch for a new PG, create it from the **current HEAD** (not from
+a hardcoded base). This ensures PG-2's branch includes PG-1's merged changes when
+PGs have dependencies.
 
 {% if pr_merge is defined and pr_merge.output and pr_merge.output.merged %}
 **PR just merged: {{ pr_merge.output.pr_url }}**

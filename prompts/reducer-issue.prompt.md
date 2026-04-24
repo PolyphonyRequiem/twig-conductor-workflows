@@ -1,5 +1,5 @@
 Perform a post-issue reduction sweep for issue #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }}.
-**Plan:** Read `{{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}` for this issue's scope.
+**Plan:** Read `{{ intake.output.work_item_id }}` for this issue's scope.
 **Completed Tasks:** {{ task_manager.output.completed_tasks | json }}
 Review ALL files changed across this issue's tasks for cross-task opportunities:
 1. Duplicate patterns introduced by separate tasks

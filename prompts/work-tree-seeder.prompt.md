@@ -1,7 +1,7 @@
 Create the ADO work tree from the implementation plan.
 **Parent:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
 **Type:** {{ intake.output.item_type }}
-**Plan:** Read `{{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}` to get the structure
+**Plan:** Read `{{ intake.output.work_item_id }}` to get the structure
 
 ## Plan Status Update (FIRST)
 Update the plan file's Status line to `> **Status**: 🔨 In Progress` before creating any items.

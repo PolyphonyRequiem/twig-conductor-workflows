@@ -1,5 +1,5 @@
 Review the PR: {{ pr_submit.output.pr_url }}
-**Plan:** Read `{{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}` for the design intent.
+**Plan:** Read `{{ intake.output.work_item_id }}` for the design intent.
 
 ## Holistic Review Tasks
 

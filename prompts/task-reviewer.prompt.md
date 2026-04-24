@@ -1,12 +1,22 @@
 Review the implementation of task #{{ task_manager.output.current_task_id }} — {{ task_manager.output.current_task_title }}.
 **Task description:** {{ task_manager.output.current_task_description }}
-**Plan:** Read `{{ (architect.output.plan_path if architect is defined and architect.output else plan_reader.output.plan_path) }}` for acceptance criteria.
 **Coder's changes:** {{ coder.output.changes_summary }}
 **Files:** {{ coder.output.files_modified | join(", ") }}
 **Tests:** {{ coder.output.tests_added | join(", ") }}
 {% if coder.output.edge_cases_handled | length > 0 %}
 **Edge cases handled:** {{ coder.output.edge_cases_handled | join(", ") }}
 {% endif %}
+
+{% if task_reviewer is defined and task_reviewer.output %}
+**Review attempt:** {{ (task_reviewer.output.review_attempt | default(0)) + 1 }}
+{% endif %}
+
+## Review Cap
+
+If this is review attempt 3 or higher, you MUST either APPROVE (if the code is
+functional even if imperfect) or escalate to the user via a clear note in your
+feedback. Do NOT reject indefinitely — 2 rejections is the cap before the coder
+has had enough guidance to succeed or fail definitively.
 
 ## Review Tasks
 
