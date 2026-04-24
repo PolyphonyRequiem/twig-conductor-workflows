@@ -66,11 +66,9 @@ agents:
       - "-File"
       - "scripts/detect-state.ps1"
       - "-WorkItemId"
-      - "{{ workflow.input.work_item_id | default(0) }}"
+      - "{{ workflow.input.work_item_id }}"
       - "-Intent"
-      - "{{ workflow.input.intent | default('resume') }}"
-      - "{{ '-PlanPath' if workflow.input.plan_path else '' }}"
-      - "{{ workflow.input.plan_path | default('') }}"
+      - "{{ workflow.input.intent }}"
     routes:
       # Script routes via exit codes (P8: script agents can't declare output schema)
       # exit 1 = error, exit 2 = intent_conflict, exit 3 = needs_cleanup
