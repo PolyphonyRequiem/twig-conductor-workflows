@@ -142,36 +142,17 @@ agents:
     options:
       - label: "Resume where we left off"
         value: "resume"
-        route: planning_or_implementation
+        route: implementation
+        when: "{{ state_detector.output.phase == 'ready_for_implementation' }}"
+      - label: "Resume where we left off"
+        value: "resume"
+        route: planning
       - label: "Redo from scratch (deletes existing children, branches, PRs)"
         value: "redo"
         route: cleanup
       - label: "Cancel"
         value: "cancel"
         route: $end
-
-  # ── PLANNING-OR-IMPLEMENTATION ROUTER ───────────────────────────
-  # Routes corrected resume intent to the right phase
-  - name: planning_or_implementation
-    description: Routes corrected resume intent based on detected phase
-    model: claude-sonnet-4.6
-    input:
-      - state_detector.output
-    prompt: |
-      The user chose to resume. Based on state detection:
-      - Phase: {{ state_detector.output.phase }}
-      - Has plan: {{ state_detector.output.has_plan }}
-      - Has seeded children: {{ state_detector.output.has_seeded_children }}
-
-      Output the phase for routing. If has_plan AND has_seeded_children, output
-      phase="ready_for_implementation". Otherwise output phase="needs_planning".
-    output:
-      phase:
-        type: string
-    routes:
-      - to: implementation
-        when: "{{ output.phase == 'ready_for_implementation' }}"
-      - to: planning
 
   # ── CLEANUP (intent=redo) ───────────────────────────────────────
   - name: cleanup
