@@ -82,29 +82,31 @@ agents:
     routes:
       - to: pr_submit
 
-  # ── PR SUBMIT ─────────────────────────────────────────────────
+  # ── PR SUBMIT (script) ──────────────────────────────────────────
   - name: pr_submit
     description: Creates a GitHub PR for the planning branch
-    model: claude-sonnet-4.6
-    input:
-      - branch_pusher.output
-      - workflow.input
-    prompt: |
-      Create a GitHub PR for the planning branch.
-
-      **Work Item:** #{{ workflow.input.work_item_id }} — {{ workflow.input.title }}
-      **Branch:** {{ branch_pusher.output.branch_name }}
-      **Plan:** {{ branch_pusher.output.plan_url }}
-
-      Create the PR:
-      ```
-      gh pr create --base main --head {{ branch_pusher.output.branch_name }} \
-        --title "docs: plan for #{{ workflow.input.work_item_id }} — {{ workflow.input.title }}" \
-        --body "## Planning Artifacts\n\nSolution design and implementation plan for #{{ workflow.input.work_item_id }}.\n\n**Plan document:** {{ branch_pusher.output.plan_url }}\n\nThis PR contains planning artifacts only — no code changes." \
-        --json number,url
-      ```
-
-      Output the PR number and URL.
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-Command"
+        - |
+          $id = '{{ workflow.input.work_item_id }}'
+          $title = '{{ workflow.input.title }}'
+          $branch = '{{ branch_pusher.output.branch_name }}'
+          $planUrl = '{{ branch_pusher.output.plan_url }}'
+          $body = "## Planning Artifacts`n`nSolution design and implementation plan for #$id.`n`n**Plan document:** $planUrl`n`nThis PR contains planning artifacts only - no code changes."
+          $result = gh pr create --base main --head $branch --title "docs: plan for #$id - $title" --body $body --json number,url 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            $pr = $result | ConvertFrom-Json
+            # Link PR to work item
+            twig set $id --output json 2>$null | Out-Null
+            twig link artifact $pr.url --name "Planning PR" --output json 2>$null | Out-Null
+            [ordered]@{ pr_number = $pr.number; pr_url = $pr.url } | ConvertTo-Json
+          } else {
+            [ordered]@{ pr_number = 0; pr_url = ""; error = ($result -join "`n") } | ConvertTo-Json
+          }
     output:
       pr_number:
         type: number

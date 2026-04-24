@@ -231,9 +231,10 @@ agents:
       **Tech:** {{ review_router.output.tech_score }}/100 | **Read:** {{ review_router.output.read_score }}/100
       {{ review_router.output.combined_feedback }}
     options:
-      - label: "Force approve and proceed"
+      - label: "Force approve and proceed (provide justification)"
         value: force_approve
         route: plan_status_updater
+        prompt_for: feedback
       - label: "One more revision (with guidance)"
         value: revise
         route: architect

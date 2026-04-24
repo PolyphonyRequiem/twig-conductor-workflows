@@ -98,14 +98,16 @@ agents:
 
   # ── CHILD REVIEWER ────────────────────────────────────────────
   - name: child_reviewer
-    description: Reviews the task decomposition
+    description: Reviews the task decomposition (capped at 2 revisions)
     model: claude-sonnet-4.6
     input:
       - child_architect.output
       - workflow.input
+      - child_reviewer.output?
     system_prompt: |
       You review child-level task decomposition plans.
       Check completeness, granularity, descriptions, and test coverage.
+      Revision count: {{ child_reviewer.output.revision_count | default(0) }}
     prompt: !file prompts/plan-reviewer.prompt.md
     output:
       score:
@@ -114,9 +116,11 @@ agents:
         type: string
       approved:
         type: boolean
+      revision_count:
+        type: number
     routes:
       - to: child_architect
-        when: "{{ not output.approved }}"
+        when: "{{ not output.approved and (output.revision_count | default(0)) < 2 }}"
       - to: $end
 
   # ── DESCRIPTION ENRICHER (simple children) ────────────────────
