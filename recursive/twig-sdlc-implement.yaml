@@ -19,7 +19,7 @@ workflow:
     mcp_servers:
       web-search:
         command: npx
-        args: ["-y", "open-websearch@latest"]
+      args: ["-y", "open-websearch@latest"]
         env:
           MODE: stdio
           DEFAULT_SEARCH_ENGINE: duckduckgo
@@ -27,7 +27,7 @@ workflow:
         tools: ["*"]
       context7:
         command: npx
-        args: ["-y", "@upstash/context7-mcp@latest"]
+      args: ["-y", "@upstash/context7-mcp@latest"]
         tools: ["*"]
       ms-learn:
         type: http
@@ -56,21 +56,13 @@ agents:
   - name: duplicate_check
     description: Preflight — abort if another conductor run already owns this work item
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - ".github/skills/twig-sdlc/assets/scripts/check-duplicate-session.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id | default(0) }}"
-    output:
-      is_duplicate:
-        type: boolean
-      details:
-        type: string
-      reason:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - ".github/skills/twig-sdlc/assets/scripts/check-duplicate-session.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id | default(0) }}"
     routes:
       - to: $end
         when: "{{ output.is_duplicate }}"
@@ -102,14 +94,13 @@ agents:
   - name: work_tree_loader
     type: script
     description: Loads ADO work tree and discovers PG structure from work item tags
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/load-work-tree.ps1"
-        - "-WorkItemId"
-        - "{{ intake.output.work_item_id }}"
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/load-work-tree.ps1"
+      - "-WorkItemId"
+      - "{{ intake.output.work_item_id }}"
     routes:
       - to: pr_group_manager
 

@@ -60,66 +60,32 @@ agents:
   - name: state_detector
     description: Inspects ADO state, plan artifacts, and git state to determine lifecycle phase
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/detect-state.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id | default(0) }}"
-        - "-Intent"
-        - "{{ workflow.input.intent | default('resume') }}"
-        - "{{ '-PlanPath' if workflow.input.plan_path else '' }}"
-        - "{{ workflow.input.plan_path | default('') }}"
-    output:
-      work_item_id:
-        type: number
-      work_item_type:
-        type: string
-      work_item_state:
-        type: string
-      work_item_title:
-        type: string
-      intent:
-        type: string
-      phase:
-        type: string
-        description: "needs_planning, ready_for_implementation, or done"
-      has_plan:
-        type: boolean
-      plan_status:
-        type: string
-      plan_path:
-        type: string
-      plan_source:
-        type: string
-      has_seeded_children:
-        type: boolean
-      seed_status:
-        type: string
-      children_summary:
-        type: string
-      implementation_status:
-        type: string
-      intent_conflict:
-        type: boolean
-      needs_cleanup:
-        type: boolean
-      error:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/detect-state.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id | default(0) }}"
+      - "-Intent"
+      - "{{ workflow.input.intent | default('resume') }}"
+      - "{{ '-PlanPath' if workflow.input.plan_path else '' }}"
+      - "{{ workflow.input.plan_path | default('') }}"
     routes:
-      - to: $error
-        when: "{{ output.error }}"
+      # Script routes via exit codes (P8: script agents can't declare output schema)
+      # exit 1 = error, exit 2 = intent_conflict, exit 3 = needs_cleanup
+      # exit 10 = needs_planning, exit 20 = ready_for_implementation, exit 40 = done
       - to: intent_correction_gate
-        when: "{{ output.intent_conflict }}"
+        when: "exit_code == 2"
       - to: cleanup
-        when: "{{ output.needs_cleanup }}"
-      - to: $end
-        when: "{{ output.phase == 'done' }}"
-      - to: implementation
-        when: "{{ output.phase == 'ready_for_implementation' }}"
+        when: "exit_code == 3"
       - to: planning
+        when: "exit_code == 10"
+      - to: implementation
+        when: "exit_code == 20"
+      - to: $end
+        when: "exit_code == 40"
+      - to: $end
 
   # ── INTENT CORRECTION GATE ──────────────────────────────────────
   - name: intent_correction_gate

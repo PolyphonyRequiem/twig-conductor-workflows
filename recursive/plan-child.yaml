@@ -51,25 +51,13 @@ agents:
   - name: task_check
     description: Check if this child already has tasks — skip if so
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/assess-complexity.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id }}"
-    output:
-      work_item_id:
-        type: number
-      title:
-        type: string
-      type:
-        type: string
-      task_count:
-        type: number
-      needs_plan:
-        type: boolean
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/assess-complexity.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id }}"
     routes:
       - to: $end
         when: "{{ output.task_count > 0 and workflow.input.intent == 'resume' }}"

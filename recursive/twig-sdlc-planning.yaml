@@ -20,7 +20,7 @@ workflow:
     mcp_servers:
       context7:
         command: npx
-        args: ["-y", "@upstash/context7-mcp@latest"]
+      args: ["-y", "@upstash/context7-mcp@latest"]
         tools: ["*"]
       ms-learn:
         type: http
@@ -53,21 +53,13 @@ agents:
   - name: duplicate_check
     description: Preflight — detect conflicting conductor runs
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - ".github/skills/twig-sdlc/assets/scripts/check-duplicate-session.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id | default(0) }}"
-    output:
-      is_duplicate:
-        type: boolean
-      details:
-        type: string
-      reason:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - ".github/skills/twig-sdlc/assets/scripts/check-duplicate-session.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id | default(0) }}"
     routes:
       - to: $end
         when: "{{ output.is_duplicate }}"

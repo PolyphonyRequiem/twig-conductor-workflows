@@ -202,4 +202,19 @@ $output = [ordered]@{
 
 $output | ConvertTo-Json -Depth 3
 
+# Exit codes for conductor routing (script agents route on exit_code, not output fields):
+#   0 = error (default if errorMsg is set)
+#   2 = intent_conflict → intent_correction_gate
+#   3 = needs_cleanup → cleanup
+#  10 = needs_planning → planning
+#  20 = ready_for_implementation → implementation
+#  30 = done → close_out
+#  40 = done (already complete) → $end
 
+if ($errorMsg) { exit 1 }
+elseif ($intentConflict) { exit 2 }
+elseif ($needsCleanup) { exit 3 }
+elseif ($phase -eq 'needs_planning') { exit 10 }
+elseif ($phase -eq 'ready_for_implementation') { exit 20 }
+elseif ($phase -eq 'done') { exit 40 }
+else { exit 1 }

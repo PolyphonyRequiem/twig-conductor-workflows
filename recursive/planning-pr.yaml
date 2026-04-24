@@ -38,19 +38,13 @@ agents:
   - name: branch_check
     description: Check if planning branch already exists
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/check-branch.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id }}"
-    output:
-      branch_exists:
-        type: boolean
-      branch_name:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/check-branch.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id }}"
     routes:
       - to: $end
         when: "{{ output.branch_exists and workflow.input.intent == 'resume' }}"
@@ -60,25 +54,15 @@ agents:
   - name: branch_pusher
     description: Commit plan, push branch, link artifact to work item
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/push-planning-branch.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id }}"
-        - "-PlanPath"
-        - "{{ workflow.input.plan_path }}"
-    output:
-      branch_name:
-        type: string
-      pushed:
-        type: boolean
-      plan_url:
-        type: string
-      linked:
-        type: boolean
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/push-planning-branch.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id }}"
+      - "-PlanPath"
+      - "{{ workflow.input.plan_path }}"
     routes:
       - to: pr_submit
 
@@ -86,32 +70,26 @@ agents:
   - name: pr_submit
     description: Creates a GitHub PR for the planning branch
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-Command"
-        - |
-          $id = '{{ workflow.input.work_item_id }}'
-          $title = '{{ workflow.input.title }}'
-          $branch = '{{ branch_pusher.output.branch_name }}'
-          $planUrl = '{{ branch_pusher.output.plan_url }}'
-          $body = "## Planning Artifacts`n`nSolution design and implementation plan for #$id.`n`n**Plan document:** $planUrl`n`nThis PR contains planning artifacts only - no code changes."
-          $result = gh pr create --base main --head $branch --title "docs: plan for #$id - $title" --body $body --json number,url 2>&1
-          if ($LASTEXITCODE -eq 0) {
-            $pr = $result | ConvertFrom-Json
-            # Link PR to work item
-            twig set $id --output json 2>$null | Out-Null
-            twig link artifact $pr.url --name "Planning PR" --output json 2>$null | Out-Null
-            [ordered]@{ pr_number = $pr.number; pr_url = $pr.url } | ConvertTo-Json
-          } else {
-            [ordered]@{ pr_number = 0; pr_url = ""; error = ($result -join "`n") } | ConvertTo-Json
-          }
-    output:
-      pr_number:
-        type: number
-      pr_url:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-Command"
+      - |
+        $id = '{{ workflow.input.work_item_id }}'
+        $title = '{{ workflow.input.title }}'
+        $branch = '{{ branch_pusher.output.branch_name }}'
+        $planUrl = '{{ branch_pusher.output.plan_url }}'
+        $body = "## Planning Artifacts`n`nSolution design and implementation plan for #$id.`n`n**Plan document:** $planUrl`n`nThis PR contains planning artifacts only - no code changes."
+        $result = gh pr create --base main --head $branch --title "docs: plan for #$id - $title" --body $body --json number,url 2>&1
+        if ($LASTEXITCODE -eq 0) {
+          $pr = $result | ConvertFrom-Json
+          # Link PR to work item
+          twig set $id --output json 2>$null | Out-Null
+          twig link artifact $pr.url --name "Planning PR" --output json 2>$null | Out-Null
+          [ordered]@{ pr_number = $pr.number; pr_url = $pr.url } | ConvertTo-Json
+        } else {
+          [ordered]@{ pr_number = 0; pr_url = ""; error = ($result -join "`n") } | ConvertTo-Json
+        }
     routes:
       - to: $end
 

@@ -52,21 +52,13 @@ agents:
   - name: plan_check
     description: Check if an approved plan already exists
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/check-plan.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id }}"
-    output:
-      plan_exists:
-        type: boolean
-      plan_path:
-        type: string
-      plan_source:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/check-plan.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id }}"
     routes:
       - to: execution_planner
         when: "{{ output.plan_exists and workflow.input.intent == 'resume' }}"
@@ -174,41 +166,23 @@ agents:
   - name: review_router
     description: Gating math — scores, blocking issues, routing
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/review-router.ps1"
-        - "-TechScore"
-        - "{{ technical_reviewer.output.score }}"
-        - "-ReadScore"
-        - "{{ readability_reviewer.output.score }}"
-        - "-TechCritical"
-        - "{{ technical_reviewer.output.critical_issues | json }}"
-        - "-ReadCritical"
-        - "{{ readability_reviewer.output.critical_issues | json }}"
-        - "-RevisionCount"
-        - "{{ architect.output.plan_revision_count | default(0) }}"
-        - "-Intent"
-        - "{{ workflow.input.intent }}"
-    output:
-      tech_score:
-        type: number
-      read_score:
-        type: number
-      blocking_issue_count:
-        type: number
-      both_pass:
-        type: boolean
-      skip_approval:
-        type: boolean
-      combined_feedback:
-        type: string
-      revision_count:
-        type: number
-      route:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/review-router.ps1"
+      - "-TechScore"
+      - "{{ technical_reviewer.output.score }}"
+      - "-ReadScore"
+      - "{{ readability_reviewer.output.score }}"
+      - "-TechCritical"
+      - "{{ technical_reviewer.output.critical_issues | json }}"
+      - "-ReadCritical"
+      - "{{ readability_reviewer.output.critical_issues | json }}"
+      - "-RevisionCount"
+      - "{{ architect.output.plan_revision_count | default(0) }}"
+      - "-Intent"
+      - "{{ workflow.input.intent }}"
     routes:
       - to: architect
         when: "{{ output.route == 'architect' }}"
@@ -272,24 +246,18 @@ agents:
   - name: plan_status_updater
     description: Updates plan file status from Draft to Approved
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-Command"
-        - |
-          $plan = '{{ architect.output.plan_path }}'
-          if (Test-Path $plan) {
-            $content = Get-Content $plan -Raw
-            $content = $content -replace '>\s*\*{0,2}Status\*{0,2}:\s*.+', '> **Status**: ✅ Approved'
-            Set-Content $plan $content -NoNewline
-          }
-          @{status='approved'; plan_path=$plan} | ConvertTo-Json
-    output:
-      status:
-        type: string
-      plan_path:
-        type: string
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-Command"
+      - |
+        $plan = '{{ architect.output.plan_path }}'
+        if (Test-Path $plan) {
+          $content = Get-Content $plan -Raw
+          $content = $content -replace '>\s*\*{0,2}Status\*{0,2}:\s*.+', '> **Status**: ✅ Approved'
+          Set-Content $plan $content -NoNewline
+        }
+        @{status='approved'; plan_path=$plan} | ConvertTo-Json
     routes:
       - to: execution_planner
 

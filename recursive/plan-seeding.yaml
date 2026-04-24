@@ -43,21 +43,13 @@ agents:
   - name: seeding_check
     description: Check if children are already seeded
     type: script
-    script:
-      command: pwsh
-      args:
-        - "-NoProfile"
-        - "-File"
-        - "scripts/check-seeding.ps1"
-        - "-WorkItemId"
-        - "{{ workflow.input.work_item_id }}"
-    output:
-      seeded:
-        type: boolean
-      child_count:
-        type: number
-      children_summary:
-        type: object
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "scripts/check-seeding.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id }}"
     routes:
       - to: $end
         when: "{{ output.seeded and workflow.input.intent == 'resume' }}"
