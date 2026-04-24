@@ -1,18 +1,25 @@
-# twig-sdlc-full — Composite planning + implementation workflow
+# twig-sdlc-full — Apex SDLC workflow
 #
-# Runs twig-sdlc-planning (recursive planner) then twig-sdlc-implement
-# (monolithic implementation) as sequential sub-workflows.
+# Entry point for the full SDLC lifecycle. Routes to planning and/or
+# implementation based on observed work item state and user intent.
 #
-# If an existing plan is detected and plan_path wasn't explicitly provided,
-# a human gate asks whether to reuse the existing plan or replan from scratch.
+# Nodes:
+#   state_detector          — deterministic state inspection (PowerShell script)
+#   intent_correction_gate  — human gate when intent=new conflicts with existing work
+#   cleanup                 — reset scope for intent=redo
+#   planning                — sub-workflow: architect → seed → task decomposition
+#   implementation          — sub-workflow: code → review → PR → merge
+#   close_out               — lifecycle verification, tagging, state transitions
+#   retrospective           — postmortem review and closeout filing
 #
 # Usage:
 #   conductor run twig-sdlc-full@twig --input work_item_id=1234 --web
+#   conductor run twig-sdlc-full@twig --input work_item_id=1234 --input intent=new --web
 #   conductor run twig-sdlc-full@twig --input prompt="Add twig export command" --web
 workflow:
   name: twig-sdlc-full
-  description: Full SDLC — recursive planning then monolithic implementation
-  entry_point: plan_detector
+  description: Full SDLC — state detection, planning, implementation, close-out, retrospective
+  entry_point: state_detector
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6
@@ -24,176 +31,182 @@ workflow:
     work_item_id:
       type: number
       required: false
-      description: ADO work item ID (Epic or Issue).
+      description: ADO work item ID (Epic, Issue, or Task).
     prompt:
       type: string
       required: false
       description: Natural language description of what to build. Creates a new Epic.
-    skip_plan_review:
-      type: boolean
+    intent:
+      type: string
       required: false
-      default: false
-      description: Skip the human plan approval gate.
+      default: resume
+      description: >
+        User intent: "new" (fresh start, no prior work expected),
+        "redo" (delete existing assets and start over),
+        "resume" (pick up where we left off).
     plan_path:
       type: string
       required: false
-      description: Path to an already-approved plan file. Skips planning entirely.
+      description: >
+        Explicit plan file override for debugging/recovery. Only valid
+        with intent=resume or intent=redo.
   context:
     mode: explicit
   limits:
     max_iterations: 250
 
 agents:
-  # ── PLAN DETECTION ──────────────────────────────────────────────
-  - name: plan_detector
-    description: Checks for an existing plan and child work items for this Epic
-    model: claude-sonnet-4.6
-    input:
-      - workflow.input.work_item_id?
-      - workflow.input.plan_path?
-    prompt: |
-      {% if workflow.input.plan_path %}
-      An explicit plan_path was provided: {{ workflow.input.plan_path }}
-      Set has_explicit_plan to true and set discovered_plan_path to that value.
-      Set has_existing_plan to true.
-      Set discovered_plan_paths to [{{ workflow.input.plan_path }}].
-      Set work_item_type to "Unknown".
-      {% elif workflow.input.work_item_id %}
-      Check if existing plan documents exist for work item #{{ workflow.input.work_item_id }}.
-
-      ## Step 1: Identify the work item type and children
-      Run: `twig set {{ workflow.input.work_item_id }} --output json` then `twig tree --depth 1 --output json`
-      Note the work item **type** (Epic, Issue, or Task) from the tree output.
-      Note any child Issues and their IDs.
-
-      ## Step 2: Search for plan files using FRONTMATTER or TABLE METADATA matching (primary)
-      Search for `.plan.md` files in `docs/projects/`. Plans use TWO metadata formats:
-
-      **Format A — YAML frontmatter** (preferred, newer plans):
-      ```yaml
-      ---
-      work_item_id: 2017
-      title: "..."
-      type: Issue
-      ---
-      ```
-
-      **Format B — Table metadata** (legacy plans):
-      ```
-      | **Work Item** | #2016 |
-      ```
-      or:
-      ```
-      | **Issue** | #2016 |
-      ```
-
-      Script to extract work item IDs from all plans:
-      ```powershell
-      Get-ChildItem docs/projects/*.plan.md | ForEach-Object {
-        $content = Get-Content $_.FullName -Raw
-        $id = $null
-        if ($content -match '(?s)^---\s*\n(.*?)\n---') {
-          $fm = $Matches[1]
-          if ($fm -match 'work_item_id:\s*(\d+)') { $id = [int]$Matches[1] }
-        }
-        if (-not $id -and $content -match '\|\s*\*{0,2}Work\s*Item\*{0,2}\s*\|\s*#(\d+)') { $id = [int]$Matches[1] }
-        if (-not $id -and $content -match '\|\s*\*{0,2}Issue\*{0,2}\s*\|\s*#(\d+)') { $id = [int]$Matches[1] }
-        if ($id) { [PSCustomObject]@{ Path=$_.Name; WorkItemId=$id } }
-      } | Format-Table
-      ```
-
-      ## Step 3: Match plans to work items
-      **If work item is an Epic:**
-      - Check if any plan has `work_item_id` matching the Epic ID directly (Epic-level plan)
-      - Also check if child Issues have matching plans (child Issue ID matches a plan's `work_item_id`)
-      - Collect ALL matching plans into `discovered_plan_paths` array
-      - Build `child_issue_plans` as a JSON object mapping issue_id → plan_path for each child Issue that has a plan
-      - Set `discovered_plan_path` to the Epic-level plan if found, otherwise to the first child plan (backward compat)
-      - Set `has_existing_plan` to true if ANY plans were found (Epic-level or child-level)
-
-      **If work item is an Issue or Task:**
-      - Check if any plan has `work_item_id` matching this ID exactly
-      - Set `discovered_plan_path` to that plan
-      - Set `discovered_plan_paths` to [that plan]
-
-      ## Step 4: Fallback content search (ONLY if no frontmatter match found)
-      If Step 2-3 found no plans, fall back to searching file content for the work item ID.
-      ⚠️ Content search is a legacy heuristic — it may match a child Issue's plan that merely
-      references the parent Epic ID. Prefer frontmatter matching.
-
-      {% else %}
-      No work_item_id provided (prompt-only flow). No existing plan to detect.
-      Set all fields to false/empty.
-      {% endif %}
+  # ── STATE DETECTION (deterministic script) ───────────────────────
+  - name: state_detector
+    description: Inspects ADO state, plan artifacts, and git state to determine lifecycle phase
+    type: script
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/detect-state.ps1"
+        - "-WorkItemId"
+        - "{{ workflow.input.work_item_id | default(0) }}"
+        - "-Intent"
+        - "{{ workflow.input.intent | default('resume') }}"
+        - "{{ '-PlanPath' if workflow.input.plan_path else '' }}"
+        - "{{ workflow.input.plan_path | default('') }}"
     output:
-      has_explicit_plan:
-        type: boolean
-        description: True if plan_path was explicitly provided by the user
-      has_existing_plan:
-        type: boolean
-        description: True if any plan document(s) were found for this work item or its children
-      discovered_plan_path:
-        type: string
-        description: Path to the primary plan file (Epic-level if exists, else first child plan, empty if none)
-      discovered_plan_paths:
-        type: array
-        description: Array of ALL discovered plan paths (for Epic, includes all child issue plans)
-      child_issue_plans:
-        type: string
-        description: JSON object mapping child issue_id to plan_path (e.g. '{"2016":"docs/projects/twig-link-artifact.plan.md"}')
+      work_item_id:
+        type: number
       work_item_type:
         type: string
-        description: The work item type — Epic, Issue, or Task
-      has_child_items:
+      work_item_state:
+        type: string
+      work_item_title:
+        type: string
+      intent:
+        type: string
+      phase:
+        type: string
+        description: "needs_planning, ready_for_implementation, or done"
+      has_plan:
         type: boolean
-        description: True if the work item already has child Issues/Tasks
-      child_count:
-        type: number
-        description: Number of child work items found
+      plan_status:
+        type: string
+      plan_path:
+        type: string
+      plan_source:
+        type: string
+      has_seeded_children:
+        type: boolean
+      seed_status:
+        type: string
+      children_summary:
+        type: string
+      implementation_status:
+        type: string
+      intent_conflict:
+        type: boolean
+      needs_cleanup:
+        type: boolean
+      error:
+        type: string
     routes:
+      - to: $error
+        when: "{{ output.error }}"
+      - to: intent_correction_gate
+        when: "{{ output.intent_conflict }}"
+      - to: cleanup
+        when: "{{ output.needs_cleanup }}"
+      - to: $end
+        when: "{{ output.phase == 'done' }}"
       - to: implementation
-        when: "{{ output.has_explicit_plan }}"
-      - to: replan_gate
-        when: "{{ output.has_existing_plan }}"
+        when: "{{ output.phase == 'ready_for_implementation' }}"
       - to: planning
 
-  # ── REPLAN GATE (human decision) ────────────────────────────────
-  - name: replan_gate
+  # ── INTENT CORRECTION GATE ──────────────────────────────────────
+  - name: intent_correction_gate
     type: human_gate
-    description: Existing plan detected — choose to reuse or replan
+    description: Intent=new conflicts with existing work — ask user what they meant
     input:
-      - plan_detector.output
+      - state_detector.output
     prompt: |
-      {% if plan_detector.output.work_item_type == 'Epic' and plan_detector.output.discovered_plan_paths | length > 1 %}
-      **Epic with {{ plan_detector.output.discovered_plan_paths | length }} child issue plans found:**
-      {% for path in plan_detector.output.discovered_plan_paths %}
-      - {{ path }}
-      {% endfor %}
-      {% else %}
-      An existing plan was found at: {{ plan_detector.output.discovered_plan_path }}
+      You requested `intent=new` for work item #{{ state_detector.output.work_item_id }}
+      ({{ state_detector.output.work_item_title }}), but prior work already exists:
+
+      {% if state_detector.output.has_seeded_children %}
+      - **{{ state_detector.output.children_summary }}** child work items exist
       {% endif %}
-      {% if plan_detector.output.has_child_items %}
-      The work item also has {{ plan_detector.output.child_count }} child items already created.
-      Replanning will delete all child items tagged with "twig" before creating new ones.
+      {% if state_detector.output.has_plan %}
+      - A plan document exists at: {{ state_detector.output.plan_path }}
       {% endif %}
 
       What would you like to do?
     options:
-      - label: "Use existing plan"
-        value: "use_existing"
-        route: implementation
-      - label: "Replan from scratch"
-        value: "replan"
-        route: planning
+      - label: "Resume where we left off"
+        value: "resume"
+        route: planning_or_implementation
+      - label: "Redo from scratch (deletes existing children, branches, PRs)"
+        value: "redo"
+        route: cleanup
+      - label: "Cancel"
+        value: "cancel"
+        route: $end
 
-  # ── PHASE 1: PLANNING ────────────────────────────────────────────
+  # ── PLANNING-OR-IMPLEMENTATION ROUTER ───────────────────────────
+  # Routes corrected resume intent to the right phase
+  - name: planning_or_implementation
+    description: Routes corrected resume intent based on detected phase
+    model: claude-sonnet-4.6
+    input:
+      - state_detector.output
+    prompt: |
+      The user chose to resume. Based on state detection:
+      - Phase: {{ state_detector.output.phase }}
+      - Has plan: {{ state_detector.output.has_plan }}
+      - Has seeded children: {{ state_detector.output.has_seeded_children }}
+
+      Output the phase for routing. If has_plan AND has_seeded_children, output
+      phase="ready_for_implementation". Otherwise output phase="needs_planning".
+    output:
+      phase:
+        type: string
+    routes:
+      - to: implementation
+        when: "{{ output.phase == 'ready_for_implementation' }}"
+      - to: planning
+
+  # ── CLEANUP (intent=redo) ───────────────────────────────────────
+  - name: cleanup
+    description: Resets work item scope for a fresh start
+    model: claude-sonnet-4.6
+    input:
+      - state_detector.output
+    system_prompt: !file ../prompts/cleanup.system.md
+    prompt: !file ../prompts/cleanup.prompt.md
+    output:
+      cleaned:
+        type: boolean
+      closed_children:
+        type: array
+      abandoned_prs:
+        type: array
+      deleted_branches:
+        type: array
+      summary:
+        type: string
+    routes:
+      - to: planning
+
+  # ── PLANNING (sub-workflow) ─────────────────────────────────────
   - name: planning
     type: workflow
     workflow: ./twig-sdlc-planning.yaml
     input:
+      - state_detector.output?
       - workflow.input.work_item_id?
       - workflow.input.prompt?
-      - workflow.input.skip_plan_review?
+    input_mapping:
+      work_item_id: "{{ state_detector.output.work_item_id if state_detector is defined and state_detector.output.work_item_id else workflow.input.work_item_id }}"
+      prompt: "{{ workflow.input.prompt | default('') }}"
+      intent: "{{ state_detector.output.intent if state_detector is defined else workflow.input.intent | default('resume') }}"
     output:
       epic_id:
         type: number
@@ -201,36 +214,75 @@ agents:
         type: string
       plan_path:
         type: string
-      plan_summary:
-        type: string
-      issues_created:
-        type: number
     routes:
       - to: implementation
 
-  # ── PHASE 2: IMPLEMENTATION ──────────────────────────────────────
+  # ── IMPLEMENTATION (sub-workflow) ───────────────────────────────
   - name: implementation
     type: workflow
     workflow: ./twig-sdlc-implement.yaml
     input:
+      - state_detector.output?
       - planning.output?
-      - plan_detector.output?
       - workflow.input.work_item_id?
     input_mapping:
-      work_item_id: "{{ planning.output.epic_id if planning is defined and planning.output.epic_id is defined else workflow.input.work_item_id }}"
-      plan_path: "{{ planning.output.plan_path if planning is defined and planning.output.plan_path is defined else plan_detector.output.discovered_plan_path }}"
-      child_issue_plans: "{{ plan_detector.output.child_issue_plans if plan_detector is defined and plan_detector.output.child_issue_plans is defined else '' }}"
-      work_item_type: "{{ plan_detector.output.work_item_type if plan_detector is defined and plan_detector.output.work_item_type is defined else '' }}"
+      work_item_id: "{{ planning.output.epic_id if planning is defined and planning.output.epic_id is defined else state_detector.output.work_item_id if state_detector is defined else workflow.input.work_item_id }}"
+      intent: "{{ state_detector.output.intent if state_detector is defined else workflow.input.intent | default('resume') }}"
     output:
       observations:
         type: string
+      completed_prs:
+        type: array
+      completed_issues:
+        type: array
+    routes:
+      - to: close_out
+
+  # ── CLOSE-OUT ───────────────────────────────────────────────────
+  - name: close_out
+    description: Verify lifecycle completion, transition states, tag version
+    model: claude-opus-4.6-1m
+    input:
+      - state_detector.output?
+      - implementation.output?
+    system_prompt: !file ../prompts/close-out.system.md
+    prompt: !file ../prompts/close-out.prompt.md
+    output:
+      work_item_id:
+        type: number
+      epic_completed:
+        type: boolean
+      version_tag:
+        type: string
+      summary:
+        type: string
+    routes:
+      - to: retrospective
+
+  # ── RETROSPECTIVE ───────────────────────────────────────────────
+  - name: retrospective
+    description: Postmortem review — what went well, what went poorly, improvements
+    model: claude-sonnet-4.6
+    input:
+      - state_detector.output?
+      - close_out.output?
+      - implementation.output?
+    system_prompt: !file ../prompts/retrospective.system.md
+    prompt: !file ../prompts/retrospective.prompt.md
+    output:
+      observations:
+        type: array
       improvements:
         type: array
+      retrospective_issue_id:
+        type: number
+      summary:
+        type: string
     routes:
       - to: $end
 
 output:
-  epic_id: "{{ planning.output.epic_id if planning is defined and planning.output.epic_id is defined else workflow.input.work_item_id }}"
-  plan_path: "{{ planning.output.plan_path if planning is defined and planning.output.plan_path is defined else plan_detector.output.discovered_plan_path if plan_detector is defined else '' }}"
-  observations: "{{ implementation.output.observations if implementation is defined and implementation.output.observations is defined else '' }}"
-  improvements: "{{ (implementation.output.improvements | json) if implementation is defined and implementation.output.improvements is defined else '[]' }}"
+  work_item_id: "{{ state_detector.output.work_item_id if state_detector is defined else workflow.input.work_item_id }}"
+  phase: "{{ state_detector.output.phase if state_detector is defined else 'unknown' }}"
+  observations: "{{ retrospective.output.summary if retrospective is defined else '' }}"
+  improvements: "{{ (retrospective.output.improvements | json) if retrospective is defined else '[]' }}"

@@ -74,13 +74,15 @@ Set `verification_attempt` to {{ pr_finalizer.output.verification_attempt + 1 }}
 Set `verification_attempt` to 1.
 {% endif %}
 
-**IMPORTANT:** If this is attempt 3 or higher and verification still fails,
-set `verified: true` anyway and include a warning in `summary` explaining
-what could not be verified. The close-out agent will record this as an
-observation. Do NOT let verification loop indefinitely.
+**IMPORTANT:** Report actual verification results honestly. If verification fails,
+set `verified: false` with the specific unmerged PR groups and violations. Do NOT
+auto-approve after any number of attempts. The workflow will retry up to 10 times
+to allow for merge delays and CI propagation, but the final answer must reflect
+reality. If verification still fails after all retries, the workflow will terminate
+with a failure report — this is the correct behavior. (P7: Fail Honestly)
 
 ## Output
-- `verified` (boolean): True if every PR group has confirmed merged code (or attempt >= 3)
+- `verified` (boolean): True ONLY if every PR group has confirmed merged code
 - `unmerged_pr_groups` (array): PR group names that lack merged PRs (empty if verified)
 - `orphaned_branches` (array): Feature branches with unmerged work (empty if verified)
 - `state_violations` (array): Issues marked Done without merged code (empty if none)
