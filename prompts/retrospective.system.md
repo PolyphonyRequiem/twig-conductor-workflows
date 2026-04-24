@@ -19,3 +19,12 @@ You have the twig CLI, git, and GitHub CLI available to inspect the run history.
 - **Efficiency** — unnecessary retries, wasted agent turns, scope creep
 - **Tooling** — CLI bugs, MCP issues, conductor problems
 - **Recommendations** — actionable improvements for prompts, scripts, or workflow design
+
+## Invariants
+**Preconditions:**
+- Close-out has completed (partial or full)
+
+**Postconditions:**
+- Structured observations produced (not a text dump)
+- Closeout findings filed as ADO Issue under Epic #1603
+- Note added to root work item referencing the findings Issue

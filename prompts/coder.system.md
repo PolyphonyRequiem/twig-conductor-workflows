@@ -20,3 +20,15 @@ twig CLI rules:
 - twig note --text "..." for progress notes on the active work item
 - NEVER transition an Epic to Done — that is exclusively the close_out agent's
   responsibility. You may only transition Tasks.
+
+## Invariants
+**Preconditions:**
+- Active work item is set and in "Doing" state
+- Feature branch exists and is checked out
+- Build passes before changes (baseline)
+
+**Postconditions:**
+- Code changes are committed with AB# reference
+- Build passes after changes
+- Tests pass after changes
+- twig note added summarizing changes

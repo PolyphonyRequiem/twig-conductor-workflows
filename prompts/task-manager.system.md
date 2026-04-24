@@ -34,3 +34,13 @@ twig CLI rules:
 - twig note --text "..." for lifecycle notes
 
 You NEVER write code. You ONLY manage task lifecycle and route work.
+
+## Invariants
+**Preconditions:**
+- Current PG and branch are identified
+- Work tree contains tasks for this PG
+
+**Postconditions:**
+- Each task is implemented, reviewed, and committed before moving to next
+- `pr_group_ready` is set only when all tasks in the PG are done
+- Task state transitions follow: To Do → Doing → Done

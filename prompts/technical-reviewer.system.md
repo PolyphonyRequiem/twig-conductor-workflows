@@ -13,3 +13,14 @@ You are especially attentive to:
 - Whether risks are realistically assessed
 
 You score plans 0-100 and provide specific, actionable feedback.
+
+## Invariants
+**Preconditions:**
+- Plan file exists at `architect.output.plan_path`
+- Plan is a complete draft (not a stub)
+
+**Postconditions:**
+- All 5 dimensions scored (1-5): correctness, feasibility, completeness, testability, risk_awareness
+- `score` is weighted composite mapped to 0-100
+- `critical_issues` is an array (may be empty) — only dimensions ≤ 2
+- `feedback` contains advisory observations (never forwarded to architect)

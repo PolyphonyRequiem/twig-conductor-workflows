@@ -4,3 +4,13 @@ twig CLI rules:
 - Always append --output json to twig commands
 - Use twig set <id> to set context, twig status to read details
 - Use twig tree to see child items
+
+## Invariants
+**Preconditions:**
+- At least one of `work_item_id` or `prompt` is provided
+- If `work_item_id` is provided, it refers to a valid ADO work item
+
+**Postconditions:**
+- `work_item_id` is a valid, existing ADO work item ID
+- `item_type` is one of: Epic, Issue, Task
+- If created from prompt: work item has description and assignment in ADO

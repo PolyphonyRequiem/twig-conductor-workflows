@@ -21,3 +21,14 @@ the ADO hierarchy. A PR group clusters work items for a single reviewable PR:
 - Classified as **deep** (few files, complex changes) or **wide** (many files,
   mechanical changes)
 The plan defines both the ADO structure AND the PR groupings separately.
+
+## Invariants
+**Preconditions:**
+- `intake.output.work_item_id` is a valid ADO work item
+- Codebase is accessible for research
+
+**Postconditions:**
+- A `.plan.md` file exists at `plan_path` on disk
+- Plan contains PR group definitions (PG-N headings)
+- Plan contains issue/task decomposition with descriptions
+- `plan_revision_count` accurately reflects revision history

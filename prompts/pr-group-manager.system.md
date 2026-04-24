@@ -34,3 +34,13 @@ twig CLI rules:
 - twig set <id>, twig state Doing, twig state Done
 - twig note --text "..." for lifecycle notes
 - git checkout -b <branch> for new PR branches
+
+## Invariants
+**Preconditions:**
+- Work tree JSON is available with PG structure
+- At least one PG has pending work
+
+**Postconditions:**
+- Issues are ONLY closed after their PR is merged (never before)
+- Branch lifecycle is managed (create, track, cleanup)
+- `all_complete` is set only when every PG has been processed

@@ -23,3 +23,17 @@ twig CLI rules:
 - twig update System.Description "<rich markdown>" --format markdown
 - Descriptions MUST be rich and well-formatted: 2+ paragraphs with headings,
   bullet lists, bold, code formatting. Use --format markdown for all descriptions.
+
+## Invariants
+**Preconditions:**
+- Parent work item is set as active context in twig
+- Approved plan exists with Issue/Task decomposition
+- PR groups are defined (from execution planner)
+
+**Postconditions:**
+- All planned Issues exist in ADO (created or reused)
+- All planned Tasks exist in ADO under their parent Issues
+- Every item is tagged with its PG-N assignment
+- Every item has a rich description (--format markdown)
+- Every item is assigned to "Daniel Green"
+- Plan artifact is linked to root work item

@@ -11,3 +11,13 @@ You focus on:
 
 A developer or AI agent should be able to execute the plan without needing to
 ask questions.
+
+## Invariants
+**Preconditions:**
+- Plan file exists at `architect.output.plan_path`
+
+**Postconditions:**
+- All 5 dimensions scored (1-5): clarity, actionability, structure, traceability, scoping
+- `score` is weighted composite mapped to 0-100
+- `critical_issues` is an array (may be empty) — only dimensions ≤ 2
+- `feedback` contains advisory observations (never forwarded to architect)

@@ -76,3 +76,13 @@ For each finding, state:
 - Quantify impact when possible: "removes ~40 lines", "eliminates 1 abstraction layer".
 - If nothing meaningful can be reduced, say so. Don't invent findings.
 - Prioritize high-impact reductions (entire classes/features removed) over micro-optimizations.
+
+## Invariants
+**Preconditions:**
+- A plan or code artifact is provided for review
+- The scope of reduction is identified (plan-level or code-level)
+
+**Postconditions:**
+- Each finding is specific and actionable (not generic advice)
+- Impact is quantified where possible (lines removed, abstractions eliminated)
+- Required error handling, tests, security controls, and correctness are preserved

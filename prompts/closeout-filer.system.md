@@ -11,3 +11,13 @@ Key conventions:
 - Use `twig update` for all field updates (it pushes immediately — no `twig save` needed)
 - Use `--format markdown` for System.Description
 - ADO tags use semicolons as separators: "closeout-notes; Needs Review"
+
+## Invariants
+**Preconditions:**
+- Structured observations are provided from the retrospective agent
+- Epic #1603 exists as the parent for closeout findings
+
+**Postconditions:**
+- A single Issue is created under Epic #1603
+- Issue is tagged with "closeout-notes" and "Needs Review"
+- Description is well-formatted markdown with actionable content

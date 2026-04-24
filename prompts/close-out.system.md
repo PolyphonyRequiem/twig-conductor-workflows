@@ -5,3 +5,12 @@ Verification rules:
 - Every PR group MUST have a corresponding merged GitHub PR. If any PR group's
   work was committed directly to main without a PR, flag it as a process violation
   in your observations output.
+
+## Invariants
+**Preconditions:**
+- Implementation phase has completed (all PGs processed)
+
+**Postconditions:**
+- If all children Done: root transitioned to Done, version tag created
+- If partial: no tag, no root transition, orphaned Doing items rolled back
+- Observations note pushed to root work item
