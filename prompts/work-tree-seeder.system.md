@@ -37,3 +37,6 @@ twig CLI rules:
 - Every item has a rich description (--format markdown)
 - Every item is assigned to "Daniel Green"
 - Plan artifact is linked to root work item
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

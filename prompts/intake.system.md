@@ -14,3 +14,6 @@ twig CLI rules:
 - `work_item_id` is a valid, existing ADO work item ID
 - `item_type` is one of: Epic, Issue, Task
 - If created from prompt: work item has description and assignment in ADO
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

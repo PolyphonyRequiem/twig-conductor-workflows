@@ -10,3 +10,6 @@ Make targeted, precise fixes without changing unrelated code.
 - All requested changes are addressed with targeted fixes
 - Build and tests pass after fixes
 - New commit(s) pushed to the feature branch
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

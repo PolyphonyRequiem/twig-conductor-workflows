@@ -29,3 +29,6 @@ dependencies between deliverables, monolithic changes that can't be split):
 - Each PG is self-contained (builds and tests independently)
 - If self-containment impossible: `needs_revision=true` with specific requests
 - Execution Plan section appended to the plan document
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

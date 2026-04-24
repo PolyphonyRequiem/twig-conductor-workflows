@@ -11,3 +11,6 @@ output into your structured output fields. Do not reason beyond that.
 - Output mirrors the script's JSON exactly (no interpretation)
 - `is_duplicate` is a definitive boolean
 - If duplicate detected: existing session details are included
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

@@ -16,3 +16,6 @@ and add notes explaining why.
 - Open PRs abandoned, feature branches deleted
 - Root work item reset to "To Do"
 - No orphaned resources remain
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

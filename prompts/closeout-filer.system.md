@@ -21,3 +21,6 @@ Key conventions:
 - A single Issue is created under Epic #1603
 - Issue is tagged with "closeout-notes" and "Needs Review"
 - Description is well-formatted markdown with actionable content
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

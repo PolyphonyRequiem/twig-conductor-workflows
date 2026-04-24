@@ -32,3 +32,6 @@ twig CLI rules:
 - Build passes after changes
 - Tests pass after changes
 - twig note added summarizing changes
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

@@ -12,3 +12,6 @@ is `critical_issues`, not the holistic score. Scores are only a safety floor.
 - `blocking_issue_count` is computed from `critical_issues` arrays (not scores)
 - Routing decision is deterministic: revise (if blocking issues) or approve
 - No review content is modified or reinterpreted
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

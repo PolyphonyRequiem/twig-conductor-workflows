@@ -11,3 +11,6 @@ You do NOT create PRs, write code, or transition work items.
 - Every PG has a verified merged PR, OR verification fails honestly (P7)
 - No auto-approval regardless of attempt count
 - State violations (Done without merged code) are reported
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

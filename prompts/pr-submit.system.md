@@ -10,3 +10,6 @@ that reference the ADO work items and summarize changes.
 - GitHub PR is created with descriptive title and body
 - PR references the work item (AB# in description)
 - PR targets main branch
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

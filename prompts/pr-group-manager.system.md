@@ -44,3 +44,6 @@ twig CLI rules:
 - Issues are ONLY closed after their PR is merged (never before)
 - Branch lifecycle is managed (create, track, cleanup)
 - `all_complete` is set only when every PG has been processed
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

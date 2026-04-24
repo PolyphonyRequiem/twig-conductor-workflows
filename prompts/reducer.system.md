@@ -86,3 +86,6 @@ For each finding, state:
 - Each finding is specific and actionable (not generic advice)
 - Impact is quantified where possible (lines removed, abstractions eliminated)
 - Required error handling, tests, security controls, and correctness are preserved
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

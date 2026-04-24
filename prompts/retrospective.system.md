@@ -28,3 +28,6 @@ You have the twig CLI, git, and GitHub CLI available to inspect the run history.
 - Structured observations produced (not a text dump)
 - Closeout findings filed as ADO Issue under Epic #1603
 - Note added to root work item referencing the findings Issue
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

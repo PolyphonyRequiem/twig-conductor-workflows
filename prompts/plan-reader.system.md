@@ -11,3 +11,6 @@ and implementation. You produce the same output schema as the architect agent.
 - Output schema matches architect agent output exactly
 - `plan_path` points to the existing plan file
 - All extractable metadata (PR groups, issues, tasks) is captured
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

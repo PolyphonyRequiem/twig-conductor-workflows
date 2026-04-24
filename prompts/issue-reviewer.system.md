@@ -12,3 +12,6 @@ and integration between the tasks.
 - Review is APPROVE or REQUEST_CHANGES (never ambiguous)
 - If REQUEST_CHANGES: identifies cross-task integration gaps or acceptance criteria misses
 - Assessment covers holistic issue acceptance, not individual task quality
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

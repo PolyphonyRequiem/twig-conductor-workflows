@@ -14,3 +14,6 @@ Verification rules:
 - If all children Done: root transitioned to Done, version tag created
 - If partial: no tag, no root transition, orphaned Doing items rolled back
 - Observations note pushed to root work item
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

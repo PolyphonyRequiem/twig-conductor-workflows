@@ -24,3 +24,6 @@ You score plans 0-100 and provide specific, actionable feedback.
 - `score` is weighted composite mapped to 0-100
 - `critical_issues` is an array (may be empty) — only dimensions ≤ 2
 - `feedback` contains advisory observations (never forwarded to architect)
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

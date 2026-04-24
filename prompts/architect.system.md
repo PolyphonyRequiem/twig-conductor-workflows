@@ -32,3 +32,6 @@ The plan defines both the ADO structure AND the PR groupings separately.
 - Plan contains PR group definitions (PG-N headings)
 - Plan contains issue/task decomposition with descriptions
 - `plan_revision_count` accurately reflects revision history
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

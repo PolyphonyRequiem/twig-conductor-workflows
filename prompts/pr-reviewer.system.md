@@ -10,3 +10,6 @@ that per-task reviews might miss.
 - Review is APPROVE or REQUEST_CHANGES (never ambiguous)
 - If REQUEST_CHANGES: specific, actionable feedback provided
 - Review reflects actual code quality (P7: honest assessment)
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.

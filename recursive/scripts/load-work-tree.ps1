@@ -1,226 +1,187 @@
 <#
 .SYNOPSIS
-    Loads the ADO work tree for an Epic/Issue and outputs structured JSON
-    for the pr_group_manager orchestrator.
+    Loads the ADO work tree and discovers PR group structure from work item tags.
 
 .DESCRIPTION
-    Deterministic replacement for the LLM-based work_tree_seeder in the
-    implement workflow. Reads the ADO hierarchy via twig CLI and outputs
-    the work_tree and pr_groups structure expected by downstream agents.
+    Deterministic script that reads the ADO hierarchy via twig CLI and groups
+    work items into PR groups based on their PG-N tags (P1: work items are
+    source of truth).
 
-    When given an Epic, auto-discovers per-issue plan files in PlanDir
-    by matching frontmatter work_item_id to child Issue IDs. Aggregates
-    PR groups across all discovered plans with sequential numbering.
-
-    Reads PR group assignments from the plan file if provided, otherwise
-    creates a single PR group containing all tasks.
+    Fallback: if no PG tags exist on any children, creates a single PG-1
+    containing all items with a warning.
 
 .PARAMETER WorkItemId
-    The Epic or Issue ADO ID.
-
-.PARAMETER PlanPath
-    Optional path to a single .plan.md file for PR group extraction.
-
-.PARAMETER PlanDir
-    Directory to scan for per-issue .plan.md files (default: docs/projects).
-    Used when PlanPath is empty and the work item is an Epic with child Issues.
+    The Epic, Issue, or Task ADO ID.
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][int]$WorkItemId,
-    [string]$PlanPath = "",
-    [string]$PlanDir = "docs/projects"
+    [Parameter(Mandatory)][int]$WorkItemId
 )
 
 $ErrorActionPreference = 'Stop'
 
-# Set context and get tree
-$null = twig set $WorkItemId --output json 2>$null
-$treeJson = twig tree --output json 2>$null
-$tree = $treeJson | ConvertFrom-Json
+# ── Step 1: Load the work tree from ADO ──────────────────────────────────────
 
-if (-not $tree -or -not $tree.focus) {
-    Write-Error "Failed to load work tree for #$WorkItemId"
-    exit 1
-}
+twig set $WorkItemId --output json 2>$null | Out-Null
+$treeJson = twig tree --depth 2 --output json 2>$null
+$tree = $treeJson | ConvertFrom-Json
 
 $focus = $tree.focus
 $children = $tree.children
 
-# Build issue/task hierarchy
+# Build flat list of all issues and tasks
 $issues = @()
 $allTasks = @()
-foreach ($child in $children) {
-    if ($child.type -eq 'Issue') {
-        # Get tasks under this issue
-        $null = twig set $child.id --output json 2>$null
-        $issueTree = twig tree --output json 2>$null | ConvertFrom-Json
-        $tasks = @()
-        if ($issueTree.children) {
-            foreach ($t in $issueTree.children) {
-                if ($t.type -eq 'Task') {
-                    $tasks += [ordered]@{
-                        id    = $t.id
-                        title = $t.title
-                        state = $t.state
-                    }
-                    $allTasks += $t
-                }
-            }
-        }
-        $issues += [ordered]@{
+
+if ($focus.type -eq 'Epic') {
+    foreach ($child in $children) {
+        $issue = [ordered]@{
             id         = $child.id
             title      = $child.title
             state      = $child.state
-            task_count = $tasks.Count
-            tasks      = $tasks
+            type       = $child.type
+            tags       = $child.tags
+            task_count = 0
+            tasks      = @()
         }
+        # Get tasks under this issue
+        if ($child.children) {
+            foreach ($task in $child.children) {
+                $allTasks += [ordered]@{
+                    id    = $task.id
+                    title = $task.title
+                    state = $task.state
+                    type  = $task.type
+                    tags  = $task.tags
+                }
+                $issue.task_count++
+            }
+            $issue.tasks = @($child.children | ForEach-Object {
+                [ordered]@{ id = $_.id; title = $_.title; state = $_.state; tags = $_.tags }
+            })
+        }
+        $issues += $issue
     }
-    elseif ($child.type -eq 'Task') {
-        # Direct child tasks (Issue-level input)
-        $allTasks += $child
+}
+elseif ($focus.type -eq 'Issue') {
+    $issues += [ordered]@{
+        id         = $focus.id
+        title      = $focus.title
+        state      = $focus.state
+        type       = $focus.type
+        tags       = $focus.tags
+        task_count = if ($children) { $children.Count } else { 0 }
+        tasks      = @()
+    }
+    if ($children) {
+        foreach ($task in $children) {
+            $allTasks += [ordered]@{
+                id    = $task.id
+                title = $task.title
+                state = $task.state
+                type  = $task.type
+                tags  = $task.tags
+            }
+        }
+        $issues[0].tasks = @($children | ForEach-Object {
+            [ordered]@{ id = $_.id; title = $_.title; state = $_.state; tags = $_.tags }
+        })
+    }
+}
+elseif ($focus.type -eq 'Task') {
+    $allTasks += [ordered]@{
+        id    = $focus.id
+        title = $focus.title
+        state = $focus.state
+        type  = $focus.type
+        tags  = $focus.tags
     }
 }
 
-# Try to extract PR groups from plan file(s)
-$prGroups = @()
-$planPaths = @()
+# ── Step 2: Discover PR groups from tags ─────────────────────────────────────
 
-# Helper: check if a plan file's work_item_id matches a given ID
-function Get-PlanWorkItemId {
-    param([string]$Path)
-    $content = Get-Content $Path -Raw
-    if ($content -match '(?s)^---\s*\n(.*?)\n---') {
-        $fm = $Matches[1]
-        if ($fm -match 'work_item_id:\s*(\d+)') { return [int]$Matches[1] }
+$pgMap = @{}  # PG name → list of items
+
+# Extract PG tag from each work item's tags string
+function Get-PGTag {
+    param([string]$Tags)
+    if (-not $Tags) { return $null }
+    $tagList = $Tags -split ';\s*'
+    foreach ($tag in $tagList) {
+        $tag = $tag.Trim()
+        if ($tag -match '^PG-\d+') { return $tag }
     }
-    if ($content -match '\|\s*\*{0,2}Work\s*Item\*{0,2}\s*\|\s*#(\d+)') { return [int]$Matches[1] }
-    if ($content -match '\|\s*\*{0,2}Issue\*{0,2}\s*\|\s*#(\d+)') { return [int]$Matches[1] }
     return $null
 }
 
-# Helper: extract PGs from a single plan file
-function Extract-PGsFromPlan {
-    param([string]$Path, [array]$AllTasks, [array]$Issues, [int]$PGOffset)
-    $pgs = @()
-    $content = Get-Content $Path -Raw
-    $pgMatches = [regex]::Matches($content, '(?m)^#+\s*(PG-\d+)[:\s\u2014\-]+(.+?)$')
-    $pgIndex = 0
-    foreach ($m in $pgMatches) {
-        $pgName = "PG-$($PGOffset + $pgIndex + 1)"
-        $pgTitle = $m.Groups[2].Value.Trim()
-        $pgIndex++
+# Scan all issues and tasks for PG tags
+$allItems = @($issues) + @($allTasks)
+$taggedCount = 0
 
-        $startPos = $m.Index + $m.Length
-        $endPos = if ($pgIndex -lt $pgMatches.Count) { $pgMatches[$pgIndex].Index } else { $content.Length }
-        $section = $content.Substring($startPos, [Math]::Min($endPos - $startPos, 2000))
-        $idMatches = [regex]::Matches($section, '#(\d{4,})')
-        $taskIds = @()
-        $issueIds = @()
-        foreach ($idm in $idMatches) {
-            $refId = [int]$idm.Groups[1].Value
-            if ($AllTasks | Where-Object { $_.id -eq $refId }) {
-                $taskIds += $refId
-            }
-            elseif ($Issues | Where-Object { $_.id -eq $refId }) {
-                $issueIds += $refId
-            }
+foreach ($item in $allItems) {
+    $pgTag = Get-PGTag -Tags $item.tags
+    if ($pgTag) {
+        $taggedCount++
+        if (-not $pgMap.ContainsKey($pgTag)) {
+            $pgMap[$pgTag] = @{ task_ids = @(); issue_ids = @() }
         }
+        if ($item.type -eq 'Task') {
+            $pgMap[$pgTag].task_ids += $item.id
+        }
+        else {
+            $pgMap[$pgTag].issue_ids += $item.id
+        }
+    }
+}
 
-        $slug = ($pgTitle -replace '[^a-zA-Z0-9]+', '-' -replace '-+$', '').ToLower()
-        $branchName = "feature/$($pgName.ToLower())-$slug"
+# ── Step 3: Build PR groups array ────────────────────────────────────────────
+
+$prGroups = @()
+
+if ($pgMap.Count -gt 0) {
+    # Sort PG keys numerically (PG-1, PG-2, ...)
+    $sortedPGs = $pgMap.Keys | Sort-Object { [int]($_ -replace '^PG-(\d+).*', '$1') }
+    foreach ($pgName in $sortedPGs) {
+        $pg = $pgMap[$pgName]
+        $slug = ($pgName -replace '[^a-zA-Z0-9]+', '-').ToLower()
+        $branchName = "feature/$slug"
         if ($branchName.Length -gt 60) { $branchName = $branchName.Substring(0, 60) }
 
-        $pgs += [ordered]@{
+        $prGroups += [ordered]@{
             name                   = $pgName
-            title                  = $pgTitle
-            task_ids               = $taskIds
-            issue_ids              = $issueIds
+            task_ids               = $pg.task_ids
+            issue_ids              = $pg.issue_ids
             branch_name_suggestion = $branchName
-            source_plan            = $Path
-        }
-    }
-    return $pgs
-}
-
-if ($PlanPath -and (Test-Path $PlanPath)) {
-    # Check if this is an Epic-level plan (work_item_id matches the Epic/root item)
-    $planWiId = Get-PlanWorkItemId -Path $PlanPath
-    $isEpicPlan = ($planWiId -eq $WorkItemId) -and ($focus.type -eq 'Epic')
-
-    if ($isEpicPlan) {
-        # Epic-level plan defines the canonical PGs — use it exclusively
-        $planPaths = @($PlanPath)
-    }
-    elseif ($focus.type -eq 'Epic' -and $issues.Count -gt 0 -and (Test-Path $PlanDir)) {
-        # PlanPath is a child issue plan. For Epics, scan PlanDir for ALL child
-        # plans so we aggregate PGs across all Issues (backward compat).
-        Write-Warning "No Epic-level plan found. Aggregating PGs from child issue plans in $PlanDir."
-        $planFiles = Get-ChildItem "$PlanDir/*.plan.md" -ErrorAction SilentlyContinue
-        $issueIds = @($issues | ForEach-Object { $_.id })
-        foreach ($pf in $planFiles) {
-            $matchedId = Get-PlanWorkItemId -Path $pf.FullName
-            if ($matchedId -and ($issueIds -contains $matchedId)) {
-                $planPaths += $pf.FullName
-            }
-        }
-        # Ensure the explicitly provided PlanPath is included
-        if ($planPaths -notcontains (Resolve-Path $PlanPath).Path) {
-            $planPaths = @($PlanPath) + $planPaths
-        }
-    }
-    else {
-        # Issue-level run or non-Epic — single plan is sufficient
-        $planPaths = @($PlanPath)
-    }
-}
-elseif ($issues.Count -gt 0 -and (Test-Path $PlanDir)) {
-    # No PlanPath — auto-discover plans per Issue via frontmatter or table metadata
-    $planFiles = Get-ChildItem "$PlanDir/*.plan.md" -ErrorAction SilentlyContinue
-    $issueIds = @($issues | ForEach-Object { $_.id })
-    foreach ($pf in $planFiles) {
-        $matchedId = Get-PlanWorkItemId -Path $pf.FullName
-        if ($matchedId -and ($issueIds -contains $matchedId)) {
-            $planPaths += $pf.FullName
         }
     }
 }
+else {
+    # Fallback: no PG tags found — create single PG with all items
+    Write-Warning "No PG tags found on work items. Creating single PG-1 with all items."
+    $slug = ($focus.title -replace '[^a-zA-Z0-9]+', '-' -replace '-+$', '').ToLower()
+    $branchName = "feature/pg-1-$slug"
+    if ($branchName.Length -gt 60) { $branchName = $branchName.Substring(0, 60) }
 
-# Extract PGs from all discovered plans
-$pgOffset = 0
-foreach ($pp in $planPaths) {
-    $extractedPGs = Extract-PGsFromPlan -Path $pp -AllTasks $allTasks -Issues $issues -PGOffset $pgOffset
-    if ($extractedPGs) {
-        $prGroups += $extractedPGs
-        $pgOffset += $extractedPGs.Count
-    }
-}
-
-# Fallback: single PR group with all tasks if none found in plan
-if ($prGroups.Count -eq 0) {
-    $slug = ($focus.title -replace '[^a-zA-Z0-9]+', '-').ToLower()
-    if ($slug.Length -gt 50) { $slug = $slug.Substring(0, 50) }
     $prGroups += [ordered]@{
         name                   = "PG-1"
-        title                  = $focus.title
         task_ids               = @($allTasks | ForEach-Object { $_.id })
         issue_ids              = @($issues | ForEach-Object { $_.id })
-        branch_name_suggestion = "feature/$slug"
+        branch_name_suggestion = $branchName
     }
 }
 
-# Output
-$result = [ordered]@{
-    work_tree    = [ordered]@{
+# ── Step 4: Output ───────────────────────────────────────────────────────────
+
+[ordered]@{
+    work_tree  = [ordered]@{
         epic_id    = $focus.id
         epic_title = $focus.title
         epic_type  = $focus.type
         issues     = $issues
     }
-    pr_groups    = $prGroups
-    plan_paths   = $planPaths
-    total_tasks  = $allTasks.Count
+    pr_groups   = $prGroups
+    total_tasks = $allTasks.Count
     total_issues = $issues.Count
-}
-
-$result | ConvertTo-Json -Depth 10 -Compress
+    tagged_items = $taggedCount
+    untagged_items = ($allItems.Count - $taggedCount)
+} | ConvertTo-Json -Depth 5

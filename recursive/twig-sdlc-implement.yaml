@@ -40,23 +40,12 @@ workflow:
     work_item_id:
       type: number
       required: true
-      description: ADO work item ID (Epic or Issue) with approved plan and seeded work items.
-    plan_path:
+      description: ADO work item ID (Epic, Issue, or Task) with seeded work items.
+    intent:
       type: string
       required: false
-      description: Path to the approved .plan.md file. Auto-detected if not provided.
-    child_issue_plans:
-      type: string
-      required: false
-      description: JSON mapping of child issue_id to plan_path (for Epic-level runs with multiple plans).
-    work_item_type:
-      type: string
-      required: false
-      description: Work item type (Epic, Issue, Task). Used to enable multi-plan auto-discovery.
-    prompt:
-      type: string
-      required: false
-      description: Not used by implement workflow but required by shared intake prompt.
+      default: resume
+      description: User intent — new, redo, or resume.
   context:
     mode: explicit
   limits:
@@ -89,68 +78,34 @@ agents:
     model: claude-sonnet-4.6
     input:
       - workflow.input.work_item_id
-      - workflow.input.plan_path?
-      - workflow.input.prompt?
     system_prompt: !file ../prompts/intake.system.md
     prompt: !file ../prompts/intake.prompt.md
     output:
-      epic_id:
+      work_item_id:
         type: number
-      epic_title:
+      title:
         type: string
-      epic_description:
+      description:
         type: string
       existing_issues:
         type: array
       item_type:
         type: string
-      plan_already_approved:
-        type: boolean
-      existing_plan_path:
-        type: string
-    routes:
-      - to: plan_reader
-
-  # ── PLAN READER ───────────────────────────────────────────────────
-  - name: plan_reader
-    description: Reads the approved plan and extracts metadata
-    model: claude-sonnet-4.6
-    input:
-      - intake.output
-    system_prompt: !file ../prompts/plan-reader.system.md
-    prompt: !file ../prompts/plan-reader.prompt.md
-    output:
-      plan_path:
-        type: string
-      plan_summary:
-        type: string
-      issue_count:
-        type: number
-      pr_group_count:
-        type: number
-      total_estimated_loc:
-        type: number
     routes:
       - to: work_tree_seeder
 
   # ── WORK TREE LOADER (deterministic — no LLM) ──────────────────────
   - name: work_tree_seeder
     type: script
-    description: Loads ADO work tree and PR group structure deterministically
-    input:
-      - intake.output
-      - plan_reader.output
-    command: pwsh
-    args:
-      - "-NoProfile"
-      - "-File"
-      - "${USERPROFILE}/.conductor/registries/twig/recursive/scripts/load-work-tree.ps1"
-      - "-WorkItemId"
-      - "{{ intake.output.work_item_id }}"
-      - "-PlanPath"
-      - "{{ plan_reader.output.plan_path }}"
-      - "-PlanDir"
-      - "docs/projects"
+    description: Loads ADO work tree and discovers PG structure from work item tags
+    script:
+      command: pwsh
+      args:
+        - "-NoProfile"
+        - "-File"
+        - "scripts/load-work-tree.ps1"
+        - "-WorkItemId"
+        - "{{ intake.output.work_item_id }}"
     routes:
       - to: pr_group_manager
 
@@ -161,7 +116,7 @@ agents:
     input:
       - work_tree_seeder.output
       - intake.output
-      - plan_reader.output
+      - intake.output
       - pr_group_manager.output?
       - task_manager.output?
       - pr_merge.output?
@@ -201,7 +156,7 @@ agents:
       - pr_group_manager.output
       - work_tree_seeder.output
       - intake.output
-      - plan_reader.output
+      - intake.output
       - task_manager.output?
       - task_reviewer.output?
       - issue_reviewer.output?
@@ -250,7 +205,7 @@ agents:
     input:
       - task_manager.output
       - pr_group_manager.output
-      - plan_reader.output
+      - intake.output
       - intake.output
       - task_reviewer.output?
       - pr_reviewer.output?
@@ -279,7 +234,7 @@ agents:
     input:
       - coder.output
       - task_manager.output
-      - plan_reader.output
+      - intake.output
     system_prompt: !file ../prompts/task-reviewer.system.md
     prompt: !file ../prompts/task-reviewer.prompt.md
     output:
@@ -305,11 +260,11 @@ agents:
     description: Conditional user acceptance gate
     input:
       - task_manager.output
-      - plan_reader.output
+      - intake.output
     prompt: |
       ## User Acceptance Check
       All tasks for issue #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }} are complete.
-      **Plan:** {{ plan_reader.output.plan_path }}
+      **Work Item:** #{{ intake.output.work_item_id }}
       **Completed Tasks:** {{ task_manager.output.completed_tasks | json }}
       **Progress:** {{ task_manager.output.progress_summary }}
     options:
@@ -330,7 +285,7 @@ agents:
     model: claude-sonnet-4.6
     input:
       - task_manager.output
-      - plan_reader.output
+      - intake.output
     system_prompt: !file ../prompts/reducer.system.md
     prompt: !file ../prompts/reducer-issue.prompt.md
     output:
@@ -348,7 +303,7 @@ agents:
     model: claude-opus-4.6-1m
     input:
       - task_manager.output
-      - plan_reader.output
+      - intake.output
       - reducer_issue.output
     system_prompt: !file ../prompts/issue-reviewer.system.md
     prompt: !file ../prompts/issue-reviewer.prompt.md
@@ -373,7 +328,7 @@ agents:
     input:
       - pr_group_manager.output
       - task_manager.output?
-      - plan_reader.output
+      - intake.output
       - intake.output
     system_prompt: !file ../prompts/reducer.system.md
     prompt: !file ../prompts/reducer-pr.prompt.md
@@ -393,7 +348,7 @@ agents:
     input:
       - pr_group_manager.output
       - task_manager.output?
-      - plan_reader.output
+      - intake.output
       - work_tree_seeder.output
     system_prompt: !file ../prompts/pr-submit.system.md
     prompt: !file ../prompts/pr-submit.prompt.md
@@ -412,7 +367,7 @@ agents:
     model: claude-opus-4.6-1m
     input:
       - pr_submit.output
-      - plan_reader.output
+      - intake.output
       - pr_group_manager.output
     system_prompt: !file ../prompts/pr-reviewer.system.md
     prompt: !file ../prompts/pr-reviewer.prompt.md
@@ -445,7 +400,7 @@ agents:
     input:
       - pr_reviewer.output
       - pr_submit.output
-      - plan_reader.output
+      - intake.output
     system_prompt: !file ../prompts/pr-fixer.system.md
     prompt: !file ../prompts/pr-fixer.prompt.md
     output:
@@ -462,7 +417,7 @@ agents:
     input:
       - pr_submit.output
       - pr_group_manager.output
-      - plan_reader.output
+      - intake.output
     system_prompt: !file ../prompts/pr-merge.system.md
     prompt: !file ../prompts/pr-merge.prompt.md
     output:
@@ -508,35 +463,15 @@ agents:
       verification_attempt:
         type: number
     routes:
-      - to: close_out
-        when: "{{ output.verified or output.verification_attempt >= 3 }}"
-      - to: pr_group_manager
-        when: "{{ not output.verified and output.verification_attempt < 3 }}"
-
-  # ── CLOSE-OUT ─────────────────────────────────────────────────────
-  - name: close_out
-    description: Transitions work item to Done, produces observations
-    model: claude-opus-4.6-1m
-    input:
-      - intake.output
-      - plan_reader.output
-      - pr_group_manager.output
-      - pr_finalizer.output
-      - work_tree_seeder.output
-    system_prompt: !file ../prompts/close-out.system.md
-    prompt: !file ../prompts/close-out.prompt.md
-    output:
-      observations:
-        type: string
-      agent_struggles:
-        type: array
-      improvements:
-        type: array
-      epic_completed:
-        type: boolean
-    routes:
       - to: $end
+        when: "{{ output.verified }}"
+      - to: pr_group_manager
+        when: "{{ not output.verified and output.verification_attempt < 10 }}"
+      - to: $end
+        when: "{{ not output.verified and output.verification_attempt >= 10 }}"
 
 output:
-  observations: "{{ close_out.output.observations if close_out is defined else duplicate_check.output.reason }}"
-  improvements: "{{ (close_out.output.improvements | json) if close_out is defined else '[]' }}"
+  completed_prs: "{{ pr_group_manager.output.completed_prs | json if pr_group_manager is defined else '[]' }}"
+  completed_issues: "{{ pr_group_manager.output.completed_issues | json if pr_group_manager is defined else '[]' }}"
+  verified: "{{ pr_finalizer.output.verified if pr_finalizer is defined else false }}"
+  summary: "{{ pr_finalizer.output.summary if pr_finalizer is defined else '' }}"

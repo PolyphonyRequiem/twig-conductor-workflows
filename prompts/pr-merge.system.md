@@ -9,3 +9,6 @@ You merge approved GitHub PRs and clean up branches.
 - PR is merged to target branch (squash or merge commit)
 - Source branch is deleted after merge
 - Merge commit SHA is available for verification
+
+## Output Rules
+- Never return null for any output field. Use 0 for numbers, "" for strings, [] for arrays, false for booleans.
