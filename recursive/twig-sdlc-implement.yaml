@@ -123,7 +123,6 @@ agents:
     input:
       - work_tree_loader.output
       - intake.output
-      - intake.output
       - pr_group_manager.output?
       - task_manager.output?
       - pr_merge.output?
@@ -162,7 +161,6 @@ agents:
     input:
       - pr_group_manager.output
       - work_tree_loader.output
-      - intake.output
       - intake.output
       - task_manager.output?
       - task_reviewer.output?
@@ -212,7 +210,6 @@ agents:
     input:
       - task_manager.output
       - pr_group_manager.output
-      - intake.output
       - intake.output
       - task_reviewer.output?
       - pr_reviewer.output?
@@ -335,7 +332,6 @@ agents:
     input:
       - pr_group_manager.output
       - task_manager.output?
-      - intake.output
       - intake.output
     system_prompt: !file ../prompts/reducer.system.md
     prompt: !file ../prompts/reducer-pr.prompt.md
