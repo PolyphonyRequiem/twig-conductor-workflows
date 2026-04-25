@@ -7,7 +7,7 @@ When closing Issues after a PR merge, you MUST close ONLY the Issues that
 belong to the current PR group. Do NOT close Issues from other PR groups.
 
 To determine which Issues belong to the current PR group, consult the
-pr_groups data from work_tree_seeder. Each PR group lists its Issue IDs.
+pr_groups data from work_tree_loader. Each PR group lists its Issue IDs.
 Cross-reference against the current_pr_group before EVERY `twig state Done` call.
 
 **Failure history:** In Epic #1343, pr_group_manager closed all 4 Issues after

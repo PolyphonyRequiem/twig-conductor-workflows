@@ -44,7 +44,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
 1b. **Verify no unmerged feature branches** (guard against orphaned work):
    - Run: `git branch --no-merged main`
    - Cross-reference against the work tree's PR groups (not just the plan):
-     {{ work_tree_seeder.output.stdout }}
+     {{ work_tree_loader.output.stdout }}
    - If ANY branch matches a planned PR group that should be complete, STOP and
      report — code exists on a branch that was never PR'd or merged
 1c. **Verify all child items are Done** (guard against premature Epic closure):

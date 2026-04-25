@@ -1,7 +1,7 @@
 Verify that all PR groups have been merged before close-out proceeds.
 
 **PR Groups from work tree:**
-{{ work_tree_seeder.output.stdout }}
+{{ work_tree_loader.output.stdout }}
 
 **Completed PRs (claimed by pr_group_manager):**
 {{ pr_group_manager.output.completed_prs | json }}

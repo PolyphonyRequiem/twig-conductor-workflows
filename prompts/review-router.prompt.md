@@ -26,6 +26,6 @@ Gating rules (apply in order):
    If intent is "resume" and a plan was previously approved, set `skip_approval` to true.
    If intent is "new", always require approval (`skip_approval` = false).
 5. Mirror `architect.output.plan_revision_count` into your `plan_revision_count` output.
-6. If `plan_revision_count >= 2`, the loop is capped. Proceed to `plan_approval` (or `work_tree_seeder` if `skip_approval`) regardless of `blocking_issue_count`. Include any unresolved blocking issues in `combined_feedback` so the human gate can decide.
+6. If `plan_revision_count >= 2`, the loop is capped. Proceed to `plan_approval` (or `work_tree_loader` if `skip_approval`) regardless of `blocking_issue_count`. Include any unresolved blocking issues in `combined_feedback` so the human gate can decide.
 
 When looping back (i.e. `both_pass` is false AND the cap has not been reached), set `combined_feedback` to ONLY the `critical_issues` arrays from both reviewers, grouped by reviewer, verbatim. Do NOT include non-critical feedback, stylistic suggestions, "areas for enhancement", or the holistic `feedback` fields — those are intentionally advisory and the architect must not chase them.
