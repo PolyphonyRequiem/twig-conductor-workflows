@@ -64,20 +64,15 @@ agents:
       - "-Intent"
       - "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
     routes:
-      # Script routes via exit codes (P8: script agents can't declare output schema)
-      # exit 1 = error, exit 2 = intent_conflict, exit 3 = needs_cleanup
-      # exit 10 = needs_planning, exit 20 = ready_for_implementation, exit 40 = done
       - to: intent_correction_gate
-        when: "exit_code == 2"
+        when: "{{ output.intent_conflict }}"
       - to: cleanup
-        when: "exit_code == 3"
-      - to: planning
-        when: "exit_code == 10"
+        when: "{{ output.needs_cleanup }}"
+      - to: $end
+        when: "{{ output.phase == 'done' }}"
       - to: implementation
-        when: "exit_code == 20"
-      - to: $end
-        when: "exit_code == 40"
-      - to: $end
+        when: "{{ output.phase == 'ready_for_implementation' }}"
+      - to: planning
 
   # ── INTENT CORRECTION GATE ──────────────────────────────────────
   - name: intent_correction_gate
