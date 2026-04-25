@@ -46,6 +46,11 @@ workflow:
       required: false
       default: resume
       description: User intent — new, redo, or resume.
+    prompt:
+      type: string
+      required: false
+      default: ""
+      description: Not used by implementation — declared for shared intake prompt compatibility.
   context:
     mode: explicit
   limits:
