@@ -211,3 +211,4 @@ output:
   phase: "{{ state_detector.output.stdout if state_detector is defined else 'unknown' }}"
   observations: "{{ retrospective.output.summary if retrospective is defined else '' }}"
   improvements: "{{ (retrospective.output.improvements | json) if retrospective is defined else '[]' }}"
+

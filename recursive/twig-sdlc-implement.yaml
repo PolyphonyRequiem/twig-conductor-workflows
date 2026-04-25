@@ -83,6 +83,7 @@ agents:
     model: claude-sonnet-4.6
     input:
       - workflow.input.work_item_id
+      - workflow.input.prompt?
     system_prompt: !file ../prompts/intake.system.md
     prompt: !file ../prompts/intake.prompt.md
     output:
