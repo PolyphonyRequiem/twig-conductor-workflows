@@ -104,6 +104,8 @@ agents:
   - name: work_tree_loader
     type: script
     description: Loads ADO work tree and discovers PG structure from work item tags
+    input:
+      - intake.output
     command: pwsh
     args:
       - "-NoProfile"
