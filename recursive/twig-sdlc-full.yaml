@@ -104,6 +104,7 @@ agents:
     description: Resets work item scope for a fresh start
     model: claude-sonnet-4.6
     input:
+      - workflow.input.work_item_id
       - state_detector.output
     system_prompt: !file ../prompts/cleanup.system.md
     prompt: !file ../prompts/cleanup.prompt.md
