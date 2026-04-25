@@ -55,14 +55,18 @@ agents:
   # ── PREFLIGHT ─────────────────────────────────────────────────────
   - name: duplicate_check
     description: Preflight — abort if another conductor run already owns this work item
-    type: script
-    command: pwsh
-    args:
-      - "-NoProfile"
-      - "-File"
-      - ".github/skills/twig-sdlc/assets/scripts/check-duplicate-session.ps1"
-      - "-WorkItemId"
-      - "{{ workflow.input.work_item_id | default(0) }}"
+    model: claude-sonnet-4.6
+    input:
+      - workflow.input.work_item_id?
+    system_prompt: !file ../prompts/duplicate-check.system.md
+    prompt: !file ../prompts/duplicate-check.prompt.md
+    output:
+      is_duplicate:
+        type: boolean
+      details:
+        type: string
+      reason:
+        type: string
     routes:
       - to: $end
         when: "{{ output.is_duplicate }}"
