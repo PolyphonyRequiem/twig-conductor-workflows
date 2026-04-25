@@ -35,6 +35,7 @@ workflow:
     prompt:
       type: string
       required: false
+      default: ""
       description: Natural language description of what to build. Creates a new Epic.
     intent:
       type: string
