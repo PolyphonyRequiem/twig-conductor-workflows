@@ -58,7 +58,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/detect-state.ps1"
+      - "{{ workflow.dir }}/scripts/detect-state.ps1"
       - "-WorkItemId"
       - "{{ workflow.input.work_item_id if workflow.input.work_item_id else 0 }}"
       - "-Intent"

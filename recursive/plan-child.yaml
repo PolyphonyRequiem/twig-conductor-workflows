@@ -55,7 +55,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/assess-complexity.ps1"
+      - "{{ workflow.dir }}/scripts/assess-complexity.ps1"
       - "-WorkItemId"
       - "{{ workflow.input.work_item_id }}"
     routes:

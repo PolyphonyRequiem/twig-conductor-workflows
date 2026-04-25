@@ -56,7 +56,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/check-plan.ps1"
+      - "{{ workflow.dir }}/scripts/check-plan.ps1"
       - "-WorkItemId"
       - "{{ workflow.input.work_item_id }}"
     routes:
@@ -170,7 +170,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/review-router.ps1"
+      - "{{ workflow.dir }}/scripts/review-router.ps1"
       - "-TechScore"
       - "{{ technical_reviewer.output.score }}"
       - "-ReadScore"

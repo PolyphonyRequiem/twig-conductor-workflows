@@ -98,7 +98,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/load-work-tree.ps1"
+      - "{{ workflow.dir }}/scripts/load-work-tree.ps1"
       - "-WorkItemId"
       - "{{ intake.output.work_item_id }}"
     routes:
