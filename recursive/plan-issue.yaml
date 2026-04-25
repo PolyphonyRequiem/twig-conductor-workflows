@@ -59,7 +59,7 @@ agents:
       If task_count > 0 or the Issue has child Tasks in ADO, output needs_planning=false.
       Otherwise output needs_planning=true.
     prompt: |
-      Issue #{{ workflow.input.work_item_id }} has task_count={{ workflow.input.task_count | default(0) }}.
+      Issue #{{ workflow.input.work_item_id }} has task_count={{ workflow.input.task_count if workflow.input.task_count is defined else 0 }}.
       {% if workflow.input.task_count and workflow.input.task_count > 0 %}
       Tasks already exist. Output needs_planning=false, skip_reason="Tasks already seeded from plan".
       {% else %}

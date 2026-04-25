@@ -151,7 +151,7 @@ agents:
       - workflow.input.intent?
     input_mapping:
       work_item_id: "{{ planning.output.work_item_id if planning is defined and planning.output is defined else workflow.input.work_item_id }}"
-      intent: "{{ workflow.input.intent | default('resume') }}"
+      intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
     output:
       observations:
         type: string

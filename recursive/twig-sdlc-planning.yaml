@@ -37,6 +37,7 @@ workflow:
     prompt:
       type: string
       required: false
+      default: ""
       description: Natural language description. Creates a new Epic.
     intent:
       type: string
@@ -106,8 +107,8 @@ agents:
       description: "{{ intake.output.description }}"
       item_type: "{{ intake.output.item_type }}"
       existing_issues: "{{ intake.output.existing_issues | json }}"
-      intent: "{{ workflow.input.intent | default('resume') }}"
-      prompt: "{{ workflow.input.prompt | default('') }}"
+      intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
+      prompt: "{{ workflow.input.prompt if workflow.input.prompt else '' }}"
     output:
       plan_path:
         type: string
@@ -132,7 +133,7 @@ agents:
       work_item_id: "{{ intake.output.work_item_id }}"
       plan_path: "{{ design.output.plan_path }}"
       title: "{{ intake.output.title }}"
-      intent: "{{ workflow.input.intent | default('resume') }}"
+      intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
     output:
       branch_name:
         type: string
@@ -155,7 +156,7 @@ agents:
       work_item_id: "{{ intake.output.work_item_id }}"
       plan_path: "{{ design.output.plan_path }}"
       pr_groups: "{{ design.output.pr_groups | json }}"
-      intent: "{{ workflow.input.intent | default('resume') }}"
+      intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
     output:
       children:
         type: array
