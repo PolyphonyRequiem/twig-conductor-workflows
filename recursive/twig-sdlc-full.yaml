@@ -29,7 +29,7 @@ workflow:
         tools: ["*"]
   input:
     work_item_id:
-      type: number
+      type: string
       required: false
       description: ADO work item ID (Epic, Issue, or Task).
     prompt:
@@ -44,12 +44,6 @@ workflow:
         User intent: "new" (fresh start, no prior work expected),
         "redo" (delete existing assets and start over),
         "resume" (pick up where we left off).
-    plan_path:
-      type: string
-      required: false
-      description: >
-        Explicit plan file override for debugging/recovery. Only valid
-        with intent=resume or intent=redo.
   context:
     mode: explicit
   limits:
@@ -64,11 +58,11 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "scripts/detect-state.ps1"
+      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/detect-state.ps1"
       - "-WorkItemId"
-      - "{{ workflow.input.work_item_id }}"
+      - "{{ workflow.input.work_item_id if workflow.input.work_item_id else 0 }}"
       - "-Intent"
-      - "{{ workflow.input.intent }}"
+      - "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
     routes:
       # Script routes via exit codes (P8: script agents can't declare output schema)
       # exit 1 = error, exit 2 = intent_conflict, exit 3 = needs_cleanup

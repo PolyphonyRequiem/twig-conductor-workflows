@@ -47,7 +47,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "scripts/check-seeding.ps1"
+      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/check-seeding.ps1"
       - "-WorkItemId"
       - "{{ workflow.input.work_item_id }}"
     routes:

@@ -42,7 +42,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "scripts/check-branch.ps1"
+      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/check-branch.ps1"
       - "-WorkItemId"
       - "{{ workflow.input.work_item_id }}"
     routes:
@@ -58,7 +58,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "scripts/push-planning-branch.ps1"
+      - "C:/Users/dangreen/.conductor/registries/twig/recursive/scripts/push-planning-branch.ps1"
       - "-WorkItemId"
       - "{{ workflow.input.work_item_id }}"
       - "-PlanPath"
