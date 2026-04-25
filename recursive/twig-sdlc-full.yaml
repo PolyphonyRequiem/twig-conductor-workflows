@@ -130,8 +130,8 @@ agents:
       - workflow.input.intent?
     input_mapping:
       work_item_id: "{{ workflow.input.work_item_id }}"
-      prompt: "{{ workflow.input.prompt | default('') }}"
-      intent: "{{ workflow.input.intent | default('resume') }}"
+      prompt: "{{ workflow.input.prompt if workflow.input.prompt else '' }}"
+      intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
     output:
       work_item_id:
         type: number
