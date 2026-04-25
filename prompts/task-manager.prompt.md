@@ -25,15 +25,15 @@ Manage tasks within the current PR group.
 3. Determine next step (see below)
 {% endif %}
 
-{% set ir = issue_reviewer if issue_reviewer is defined else (issue_review if issue_review is defined else none) %}
-{% if ir is not none and ir.output and ir.output.approved %}
+{% set issue_reviewer = issue_reviewer if issue_reviewer is defined else (issue_review if issue_review is defined else none) %}
+{% if issue_reviewer is not none and issue_reviewer.output and issue_reviewer.output.approved %}
 **Issue review passed.** Add this issue to reviewed_issues.
 Check if this issue needs user acceptance (user-facing changes or complex acceptance criteria).
 {% endif %}
 
-{% if ir is not none and ir.output and not ir.output.approved %}
+{% if issue_reviewer is not none and issue_reviewer.output and not issue_reviewer.output.approved %}
 **Issue review failed — changes needed:**
-{{ ir.output.feedback | default('') }}
+{{ issue_reviewer.output.feedback | default('') }}
 Identify which task needs fixing based on the feedback. Run `twig tree --output json`
 to find the task, then set action=implement_task with that task's ID and description
 updated to include the reviewer feedback.
