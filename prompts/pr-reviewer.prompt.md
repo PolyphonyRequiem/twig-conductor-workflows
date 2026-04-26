@@ -1,6 +1,11 @@
 Review the PR: {{ pr_submit.output.pr_url }}
 **Work Item:** #{{ intake.output.work_item_id }}
 
+## Available Tools
+- **GitHub MCP**: Use `pull_request_read` with method `get_diff` to review the full diff,
+  `get_files` to list changed files, and `search_code` for cross-referencing patterns.
+- **Shell**: Use `dotnet test` for targeted test validation.
+
 ## Scoring Rubric (P11 — Code Review)
 
 Score each dimension on a 1-5 scale. Provide a brief rationale per dimension.
@@ -17,7 +22,7 @@ Score each dimension on a 1-5 scale. Provide a brief rationale per dimension.
 **Critical issue** = any dimension scored ≤ 2 → REQUEST_CHANGES.
 **Pass** = no dimension ≤ 2 and composite ≥ 80 → APPROVE.
 
-Review all commits: `gh pr diff {{ pr_submit.output.pr_number }}`
+Review all commits: Use GitHub MCP `pull_request_read` with method `get_diff` for PR #{{ pr_submit.output.pr_number }} (owner: PolyphonyRequiem, repo: twig).
 Run targeted tests: `dotnet test tests/<RelevantProject>.Tests --no-build --settings test.runsettings`
 Note what was done well — strengths reinforce good patterns.
 

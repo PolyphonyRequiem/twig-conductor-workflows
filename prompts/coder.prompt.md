@@ -19,6 +19,10 @@ First, read the full task description from ADO:
 - `twig set {{ task_router.output.task_id }}` — set active work item
 - Use the twig MCP tool `twig_show` to read the task's full description and acceptance criteria
 
+**Code discovery**: Use the GitHub MCP `search_code` tool to find relevant symbols, patterns,
+and existing implementations in `PolyphonyRequiem/twig` before writing code. This is faster
+and more reliable than grepping through the local filesystem.
+
 Then check if this task was already worked on:
 ```
 git --no-pager log --oneline -10

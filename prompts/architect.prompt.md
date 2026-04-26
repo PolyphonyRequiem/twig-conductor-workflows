@@ -1,10 +1,11 @@
 Create a solution design and implementation plan.
-**Work Item:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
-**Type:** {{ intake.output.item_type }}
-**Description:** {{ intake.output.description }}
-{% if intake.output.existing_issues | length > 0 %}
+**Work Item:** #{{ workflow.input.work_item_id }} — {{ workflow.input.title if workflow.input.title is defined else '' }}
+**Type:** {{ workflow.input.item_type if workflow.input.item_type is defined else '' }}
+**Description:** {{ workflow.input.description if workflow.input.description is defined else '' }}
+{% set wi_issues = workflow.input.existing_issues if workflow.input.existing_issues is defined else [] %}
+{% if wi_issues is iterable and wi_issues | length > 0 %}
 **Existing child Issues (reuse these — do NOT create duplicates):**
-{% for issue in intake.output.existing_issues %}
+{% for issue in wi_issues %}
 - #{{ issue.id }}: {{ issue.title }}{% if issue.description is defined and issue.description %} — {{ issue.description }}{% endif %}
 {% endfor %}
 Incorporate existing Issues into the plan. Define Tasks under each Issue
@@ -39,7 +40,9 @@ affected decisions, and re-evaluate remaining open questions.
 Before drafting, perform thorough research:
 
 ### Codebase Analysis
-- Explore relevant portions of the codebase deeply
+- **Use the GitHub MCP `search_code` tool** to find symbols, patterns, and implementations
+  in `PolyphonyRequiem/twig`. This is faster and more precise than grepping locally.
+- Use `get_file_contents` via GitHub MCP to read files without filesystem navigation.
 - Identify existing components, patterns, abstractions, and conventions
 - Understand the current architecture and how data flows
 - Map out dependencies between components

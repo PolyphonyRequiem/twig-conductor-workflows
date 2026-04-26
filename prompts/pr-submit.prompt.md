@@ -4,10 +4,8 @@ Create a PR for the current PR group.
 **Issues in this PG:** {{ pg_router.output.issue_ids | json }}
 
 ## Idempotency Check
-First, check if a PR already exists for this branch:
-```
-gh pr list --head {{ pg_router.output.branch_name }} --state open --json number,url,title
-```
+First, use the GitHub MCP `list_pull_requests` tool to check if a PR already exists:
+- Owner: `PolyphonyRequiem`, Repo: `twig`, head filter: `{{ pg_router.output.branch_name }}`, state: `open`
 If a PR exists, return its info (number, url, title) without creating a duplicate.
 
 ## Steps (only if no existing PR)

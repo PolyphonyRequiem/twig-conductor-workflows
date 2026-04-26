@@ -27,6 +27,10 @@ workflow:
       twig:
         command: twig-mcp
         tools: ["*"]
+      github:
+        command: pwsh
+        args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
+        tools: ["*"]
   input:
     work_item_id:
       type: string
