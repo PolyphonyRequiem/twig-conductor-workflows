@@ -3,7 +3,8 @@ Implement the following task.
 **Description:** {{ task_manager.output.current_task_description }}
 **Issue:** #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }}
 **Branch:** {{ pr_group_manager.output.branch_name }}
-**Plan:** Read `{{ intake.output.work_item_id }}` for full context.
+**Plan:** {% if workflow is defined and workflow.input is defined and workflow.input.plan_path %}Read `{{ workflow.input.plan_path }}` for full design context and PG scope.{% else %}Check `docs/projects/` for the relevant plan document.{% endif %}
+**PR Group:** {{ pr_group_manager.output.current_pr_group }}
 {% if task_reviewer is defined and task_reviewer.output and not task_reviewer.output.approved %}
 **Previous review — fix these issues:**
 {{ task_reviewer.output.feedback | default('') }}
@@ -73,10 +74,15 @@ Add a twig note: `twig note --text "Tests: <count> passed"`
 Never launch a `dotnet test` and an `npm`/`mocha` shell in parallel from the same repo
 — overlapping TypeScript/NuGet restores can produce minutes of silent stalls.
 
-### Step 5 — Commit
-`git add -A && git commit -m "<descriptive message>"`
+### Step 5 — Commit & Push
+`git add -A && git commit -m "<descriptive message>" && git push`
+
+Push after every commit for crash recovery — if the workflow restarts, committed
+work is safe on the remote. The branch was already pushed by pr_group_manager.
 
 Do NOT implement anything beyond this single task.
+Do NOT implement tasks from other PR groups — stay within {{ pr_group_manager.output.current_pr_group }}.
+If this task requires changes outside this repository, STOP and set output blocked with a description of what's needed elsewhere.
 
 ## Pre-Review Checklist (avoid review round-trips)
 Before committing, self-check against these criteria that the reviewer will enforce:

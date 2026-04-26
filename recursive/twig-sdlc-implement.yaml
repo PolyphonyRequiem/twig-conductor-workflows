@@ -46,6 +46,11 @@ workflow:
       required: false
       default: resume
       description: User intent — new, redo, or resume.
+    plan_path:
+      type: string
+      required: false
+      default: ""
+      description: Path to the approved plan document (e.g., docs/projects/foo.plan.md).
     prompt:
       type: string
       required: false
@@ -211,6 +216,7 @@ agents:
       - task_manager.output
       - pr_group_manager.output
       - intake.output
+      - workflow.input.plan_path?
       - task_reviewer.output?
       - pr_reviewer.output?
     system_prompt: !file ../prompts/coder.system.md

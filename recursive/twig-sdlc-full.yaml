@@ -140,6 +140,21 @@ agents:
       plan_path:
         type: string
     routes:
+      - to: checkout_main
+
+  # ── CHECKOUT MAIN (between planning and implementation) ────────
+  - name: checkout_main
+    description: Return to main branch after planning to avoid branch contamination
+    type: script
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-Command"
+      - |
+        git checkout main *>$null
+        git pull --ff-only *>$null 2>&1
+        [ordered]@{ branch = (git branch --show-current 2>$null); ready = $true } | ConvertTo-Json
+    routes:
       - to: implementation
 
   # ── IMPLEMENTATION (sub-workflow) ───────────────────────────────
@@ -152,6 +167,7 @@ agents:
       - workflow.input.intent?
     input_mapping:
       work_item_id: "{{ planning.output.work_item_id if planning is defined and planning.output is defined else workflow.input.work_item_id }}"
+      plan_path: "{{ planning.output.plan_path if planning is defined and planning.output is defined else '' }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
       prompt: ""
     output:
