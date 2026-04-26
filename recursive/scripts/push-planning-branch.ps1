@@ -22,14 +22,14 @@ $planUrl = ''
 # Create and checkout branch (or switch to it if it exists)
 $existingBranch = git branch --list $branchName 2>$null
 if ($existingBranch) {
-    git checkout $branchName 2>$null
+    git checkout $branchName *>$null
 }
 else {
-    git checkout -b $branchName 2>$null
+    git checkout -b $branchName *>$null
 }
 
 # Stage and commit plan documents
-git add docs/projects/ 2>$null
+git add docs/projects/ *>$null
 $hasChanges = git diff --cached --quiet 2>$null; $hasChanges = $LASTEXITCODE -ne 0
 if ($hasChanges) {
     twig set $WorkItemId --output json 2>$null | Out-Null
@@ -37,7 +37,7 @@ if ($hasChanges) {
 }
 
 # Push
-git push -u origin $branchName 2>$null
+git push -u origin $branchName *>$null
 $pushed = $LASTEXITCODE -eq 0
 
 # Generate plan URL

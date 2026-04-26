@@ -12,8 +12,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # Ensure we're on main with latest
-git checkout main 2>$null
-git pull --ff-only 2>$null
+git checkout main *>$null
+git pull --ff-only *>$null
 
 # Build
 $buildResult = dotnet build --configuration $BuildConfig --no-restore 2>&1
