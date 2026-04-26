@@ -20,7 +20,6 @@ $allPassed = $true
 
 # ── Required Check 1: gh auth ──────────────────────────────────────────
 try {
-    $ghStatus = gh auth status 2>&1 | Out-String
     $ghUser = gh api user --jq '.login' 2>$null
     $requiredChecks += [ordered]@{ name = 'gh_auth'; passed = $true; detail = "Logged in as $ghUser"; category = 'required' }
 } catch {
@@ -40,9 +39,12 @@ try {
             $requiredChecks += [ordered]@{ name = 'gh_push'; passed = $false; detail = "No push access on $repoSlug (active account: $(gh api user --jq '.login' 2>$null))"; remediation = "Run: gh auth switch --user <owner>"; category = 'required' }
             $allPassed = $false
         }
+    } else {
+        $requiredChecks += [ordered]@{ name = 'gh_push'; passed = $false; detail = "Origin remote is not a GitHub URL — cannot verify push access"; remediation = "Ensure origin is a github.com remote or run: git remote set-url origin <github-url>"; category = 'required' }
+        $allPassed = $false
     }
 } catch {
-    $requiredChecks += [ordered]@{ name = 'gh_push'; passed = $false; detail = "Could not check repo permissions: $_"; category = 'required' }
+    $requiredChecks += [ordered]@{ name = 'gh_push'; passed = $false; detail = "Could not check repo permissions: $_"; remediation = "Run: gh auth login && gh auth status"; category = 'required' }
     $allPassed = $false
 }
 
@@ -68,6 +70,9 @@ try {
     $stateResult = twig state --help 2>$null | Out-String
     if ($stateResult -match 'twig state') {
         $requiredChecks += [ordered]@{ name = 'twig_state'; passed = $true; detail = "twig state command available"; category = 'required' }
+    } else {
+        $requiredChecks += [ordered]@{ name = 'twig_state'; passed = $false; detail = "twig state output unrecognized"; remediation = "Run: ./publish-local.ps1"; category = 'required' }
+        $allPassed = $false
     }
 } catch {
     $requiredChecks += [ordered]@{ name = 'twig_state'; passed = $false; detail = "twig state not available: $_"; remediation = "Run: twig sync"; category = 'required' }
