@@ -253,7 +253,7 @@ agents:
   - name: coder
     description: Implements a single task with incremental commits
     model: claude-opus-4.6-1m
-    tools: ["twig_set", "twig_show", "twig_state", "twig_note", "twig_update", "twig_sync", "csharp_get_symbols", "csharp_find_references", "csharp_get_definition", "csharp_search", "dotnet_build", "dotnet_test"]
+    tools: ["twig_set", "twig_show", "twig_state", "twig_note", "twig_update", "twig_sync", "list_members", "find_references", "find_definition", "find_implementations", "dotnet_build", "dotnet_test"]
     input:
       - task_router.output
       - pg_router.output
@@ -282,7 +282,7 @@ agents:
   - name: pr_submit
     description: Creates or detects existing GitHub PR (idempotent)
     model: claude-sonnet-4.6
-    tools: ["github_list_pull_requests", "github_create_pull_request", "github_search_pull_requests"]
+    tools: ["list_pull_requests", "create_pull_request", "search_pull_requests"]
     input:
       - pg_router.output
       - intake.output
@@ -302,7 +302,7 @@ agents:
   - name: pr_reviewer
     description: Reviews the full PR (single review layer — no task/issue reviews)
     model: claude-opus-4.6-1m
-    tools: ["github_pull_request_read", "dotnet_build", "dotnet_test"]
+    tools: ["pull_request_read", "dotnet_build", "dotnet_test"]
     input:
       - pr_submit.output
       - intake.output
@@ -335,7 +335,7 @@ agents:
   - name: pr_fixer
     description: Fixes PR-level review issues and pushes to branch
     model: claude-sonnet-4.6
-    tools: ["csharp_get_symbols", "csharp_find_references", "csharp_get_definition", "csharp_search", "dotnet_build", "dotnet_test"]
+    tools: ["list_members", "find_references", "find_definition", "find_implementations", "dotnet_build", "dotnet_test"]
     input:
       - pr_reviewer.output
       - pr_submit.output

@@ -14,6 +14,11 @@ workflow:
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6
+    mcp_servers:
+      github:
+        command: pwsh
+        args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
+        tools: ["*"]
   input:
     work_item_id:
       type: number
@@ -69,8 +74,8 @@ agents:
     description: Researches codebase and creates solution design
     model: claude-opus-4.6-1m
     tools:
-      - github_search_code
-      - github_get_file_contents
+      - search_code
+      - get_file_contents
     input:
       - workflow.input.work_item_id
       - workflow.input.title?
@@ -137,8 +142,8 @@ agents:
     description: Validates technical accuracy using P11 rubric
     model: claude-opus-4.6-1m
     tools:
-      - github_search_code
-      - github_get_file_contents
+      - search_code
+      - get_file_contents
     input:
       - architect.output
       - workflow.input.work_item_id
