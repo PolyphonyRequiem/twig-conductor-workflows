@@ -108,6 +108,15 @@ agents:
   - name: cleanup
     description: Resets work item scope for a fresh start
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
+      - twig_children
+      - twig_state
+      - twig_note
+      - twig_sync
+      - twig_update
     input:
       - workflow.input.work_item_id
       - state_detector.output
@@ -189,6 +198,13 @@ agents:
   - name: close_out
     description: Verify lifecycle completion, transition states, tag version
     model: claude-opus-4.6-1m
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
+      - twig_state
+      - twig_note
+      - twig_sync
     input:
       - workflow.input.work_item_id
       - state_detector.output?
@@ -211,6 +227,14 @@ agents:
   - name: retrospective
     description: Postmortem review — what went well, what went poorly, improvements
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
+      - twig_new
+      - twig_sync
+      - twig_update
+      - twig_note
     input:
       - workflow.input.work_item_id
       - state_detector.output?

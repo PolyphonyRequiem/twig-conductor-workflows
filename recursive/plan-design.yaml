@@ -68,8 +68,18 @@ agents:
   - name: architect
     description: Researches codebase and creates solution design
     model: claude-opus-4.6-1m
+    tools:
+      - github_search_code
+      - github_get_file_contents
     input:
-      - workflow.input
+      - workflow.input.work_item_id
+      - workflow.input.title?
+      - workflow.input.description?
+      - workflow.input.item_type?
+      - workflow.input.existing_issues?
+      - workflow.input.intent?
+      - workflow.input.prompt?
+      - architect.output?
       - review_router.output?
       - plan_approval.output?
       - open_questions_gate.output?
@@ -126,9 +136,15 @@ agents:
   - name: technical_reviewer
     description: Validates technical accuracy using P11 rubric
     model: claude-opus-4.6-1m
+    tools:
+      - github_search_code
+      - github_get_file_contents
     input:
       - architect.output
-      - workflow.input
+      - workflow.input.work_item_id
+      - workflow.input.title?
+      - workflow.input.description?
+      - workflow.input.item_type?
     system_prompt: !file ../prompts/technical-reviewer.system.md
     prompt: !file ../prompts/technical-reviewer.prompt.md
     output:
@@ -146,6 +162,7 @@ agents:
   - name: readability_reviewer
     description: Validates clarity and structure using P11 rubric
     model: claude-sonnet-4.6
+    tools: []
     input:
       - architect.output
     system_prompt: !file ../prompts/readability-reviewer.system.md
@@ -166,6 +183,11 @@ agents:
   - name: review_router
     description: Gating math — scores, blocking issues, routing
     type: script
+    input:
+      - technical_reviewer.output
+      - readability_reviewer.output
+      - architect.output
+      - workflow.input.intent?
     command: pwsh
     args:
       - "-NoProfile"
@@ -246,6 +268,8 @@ agents:
   - name: plan_status_updater
     description: Updates plan file status from Draft to Approved
     type: script
+    input:
+      - architect.output
     command: pwsh
     args:
       - "-NoProfile"
@@ -265,10 +289,17 @@ agents:
   - name: execution_planner
     description: Defines PR groups from the approved plan
     model: claude-sonnet-4.6
+    tools: []
     input:
-      - workflow.input
+      - workflow.input.work_item_id
+      - workflow.input.title?
+      - workflow.input.description?
+      - workflow.input.item_type?
+      - workflow.input.existing_issues?
+      - workflow.input.intent?
       - architect.output?
       - plan_check.output?
+      - execution_planner.output?
     system_prompt: !file ../prompts/execution-planner.system.md
     prompt: !file ../prompts/execution-planner.prompt.md
     output:

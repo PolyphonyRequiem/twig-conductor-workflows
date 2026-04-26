@@ -24,6 +24,14 @@ workflow:
     plan_path:
       type: string
       required: true
+    title:
+      type: string
+      required: false
+      default: ""
+    item_type:
+      type: string
+      required: false
+      default: ""
     pr_groups:
       type: array
       required: false
@@ -59,8 +67,24 @@ agents:
   - name: work_tree_seeder
     description: Creates ADO Items from plan with PG tags and descriptions
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
+      - twig_children
+      - twig_new
+      - twig_find_or_create
+      - twig_sync
+      - twig_update
+      - twig_note
+      - twig_link_artifact
     input:
-      - workflow.input
+      - workflow.input.work_item_id
+      - workflow.input.plan_path
+      - workflow.input.title?
+      - workflow.input.item_type?
+      - workflow.input.pr_groups?
+      - workflow.input.intent?
     system_prompt: !file ../prompts/work-tree-seeder.system.md
     prompt: !file ../prompts/work-tree-seeder.prompt.md
     output:

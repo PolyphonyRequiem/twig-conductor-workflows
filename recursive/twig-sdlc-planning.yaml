@@ -18,24 +18,12 @@ workflow:
     provider: copilot
     default_model: claude-sonnet-4.6
     mcp_servers:
-      context7:
-        command: npx
-        args: ["-y", "@upstash/context7-mcp@latest"]
-        tools: ["*"]
-      ms-learn:
-        type: http
-        url: https://learn.microsoft.com/api/mcp
-        tools: ["*"]
       twig:
         command: twig-mcp
         tools: ["*"]
       github:
         command: pwsh
         args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
-        tools: ["*"]
-      csharp:
-        command: node
-        args: ["recursive/mcp-servers/csharp-intelligence.mjs"]
         tools: ["*"]
   input:
     work_item_id:
@@ -62,6 +50,7 @@ agents:
   - name: duplicate_check
     description: Preflight — detect conflicting conductor runs
     model: claude-sonnet-4.6
+    tools: []
     input:
       - workflow.input.work_item_id?
     system_prompt: !file ../prompts/duplicate-check.system.md
@@ -82,6 +71,16 @@ agents:
   - name: intake
     description: Reads existing work item or creates one from prompt
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
+      - twig_children
+      - twig_status
+      - twig_workspace
+      - twig_new
+      - twig_sync
+      - twig_update
     input:
       - workflow.input.work_item_id?
       - workflow.input.prompt?

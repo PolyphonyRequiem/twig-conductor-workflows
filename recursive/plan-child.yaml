@@ -69,8 +69,22 @@ agents:
   - name: child_architect
     description: Creates a plan document for a complex child
     model: claude-opus-4.6-1m
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
+      - twig_children
+      - twig_new
+      - twig_find_or_create
+      - twig_sync
+      - twig_update
+      - twig_note
     input:
-      - workflow.input
+      - workflow.input.work_item_id
+      - workflow.input.title
+      - workflow.input.type?
+      - workflow.input.plan_path?
+      - workflow.input.intent?
       - task_check.output
     system_prompt: !file prompts/issue-planner.system.md
     prompt: !file prompts/issue-planner.prompt.md
@@ -88,9 +102,14 @@ agents:
   - name: child_reviewer
     description: Reviews the task decomposition
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
     input:
       - child_architect.output
-      - workflow.input
+      - workflow.input.work_item_id
+      - workflow.input.title
     system_prompt: |
       You review child-level task decomposition plans.
       Check completeness, granularity, descriptions, and test coverage.
@@ -100,6 +119,8 @@ agents:
         type: number
       feedback:
         type: string
+      critical_issues:
+        type: array
       approved:
         type: boolean
     routes:
@@ -111,8 +132,17 @@ agents:
   - name: description_enricher
     description: Enriches a simple child's work item description
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_update
+      - twig_new
+      - twig_sync
+      - twig_children
     input:
-      - workflow.input
+      - workflow.input.work_item_id
+      - workflow.input.title
+      - workflow.input.plan_path?
       - task_check.output
     prompt: |
       Enrich the description for work item #{{ workflow.input.work_item_id }}

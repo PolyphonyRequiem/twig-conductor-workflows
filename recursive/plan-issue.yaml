@@ -51,6 +51,10 @@ agents:
   - name: task_check
     description: Checks if this Issue already has Tasks — skips planning if so
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
     input:
       - workflow.input.work_item_id
       - workflow.input.task_count?
@@ -81,6 +85,16 @@ agents:
   - name: issue_planner
     description: Researches codebase and creates Tasks under this Issue
     model: claude-opus-4.6-1m
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
+      - twig_children
+      - twig_new
+      - twig_find_or_create
+      - twig_sync
+      - twig_update
+      - twig_note
     input:
       - workflow.input.work_item_id
       - workflow.input.title
@@ -104,6 +118,10 @@ agents:
   - name: issue_reviewer
     description: Reviews the task decomposition for completeness
     model: claude-sonnet-4.6
+    tools:
+      - twig_set
+      - twig_show
+      - twig_tree
     input:
       - issue_planner.output
       - workflow.input.work_item_id
