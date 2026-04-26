@@ -19,7 +19,7 @@
 workflow:
   name: twig-sdlc-full
   description: Full SDLC — state detection, planning, implementation, close-out, retrospective
-  entry_point: state_detector
+  entry_point: preflight_check
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6
@@ -51,6 +51,69 @@ workflow:
     max_iterations: 250
 
 agents:
+  # ── PREFLIGHT CHECK ────────────────────────────────────────────
+  - name: preflight_check
+    description: Validates external dependencies (gh auth, ADO, dotnet, git) before workflow starts
+    type: script
+    input:
+      - workflow.input.work_item_id?
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/preflight-check.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id if workflow.input.work_item_id else 0 }}"
+    routes:
+      - to: state_detector
+        when: "{{ output.ready and not output.has_warnings }}"
+      - to: preflight_gate
+
+  - name: preflight_gate
+    type: human_gate
+    description: Preflight checks failed or advisory warnings present — human review required
+    input:
+      - preflight_check.output
+    prompt: |
+      ## Preflight Check Results
+
+      {% if not preflight_check.output.ready %}
+      ### ❌ Required Checks Failed
+
+      **{{ preflight_check.output.failed_count }}** required check(s) failed — workflow cannot proceed until fixed:
+
+      {% for check in preflight_check.output.required_checks %}
+      {% if not check.passed %}
+      - ❌ **{{ check.name }}**: {{ check.detail }}
+        {% if check.remediation %}→ Fix: {{ check.remediation }}{% endif %}
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+
+      {% if preflight_check.output.has_warnings %}
+      ### ⚠️ Advisory Warnings ({{ preflight_check.output.warning_count }})
+
+      These issues are non-blocking but may cause problems later:
+
+      {% for check in preflight_check.output.advisory_checks %}
+      {% if not check.passed %}
+      - ⚠️ **{{ check.name }}**: {{ check.detail }}
+        {% if check.remediation %}→ Fix: {{ check.remediation }}{% endif %}
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+    options:
+      - label: "Fixed — retry preflight"
+        value: retry
+        route: preflight_check
+      - label: "Proceed with warnings"
+        value: proceed_warnings
+        when: "{{ preflight_check.output.ready }}"
+        route: state_detector
+      - label: "Abort"
+        value: abort
+        route: $end
+
   # ── STATE DETECTION (deterministic script) ───────────────────────
   - name: state_detector
     description: Inspects ADO state, plan artifacts, and git state to determine lifecycle phase
