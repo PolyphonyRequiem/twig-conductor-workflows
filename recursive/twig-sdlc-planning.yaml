@@ -33,6 +33,10 @@ workflow:
         command: pwsh
         args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
         tools: ["*"]
+      csharp:
+        command: node
+        args: ["recursive/mcp-servers/csharp-intelligence.mjs"]
+        tools: ["*"]
   input:
     work_item_id:
       type: number

@@ -40,7 +40,8 @@ git --no-pager status --short
 ### Step 1 — Targeted Research (< 10 minutes)
 Research ONLY what you need for THIS task — not the whole codebase:
 - Read the plan file for this task's specific section
-- Identify files to create/modify (use `grep` and `glob`, not exploratory shell commands)
+- **Use the C# Intelligence MCP** (`find_definition`, `find_references`, `find_implementations`)
+  to navigate the codebase precisely. This is faster and more reliable than grepping.
 - Check the conventions of 1-2 similar existing files as reference
 - Add a twig note: `twig note --text "Research: <findings>"`
 
@@ -55,11 +56,15 @@ Write tests covering the new functionality and edge cases.
 - Track edge cases you explicitly handled (for reviewer visibility)
 
 ### Step 4 — Run Tests (scope-aware)
-Pick the narrowest suite that covers your changes. Running the whole solution when
-you only touched one subtree wastes 10+ minutes and risks hitting the session cap.
+Pick the narrowest suite that covers your changes. **Use the `dotnet` MCP tools** for
+structured build and test results instead of parsing terminal output:
 
+- **`dotnet_build`** — returns structured errors/warnings with file, line, code
+- **`dotnet_test`** — returns pass/fail counts and structured failure details (test name, message, stack trace)
+
+Scope rules:
 - **Changes confined to `ext/twig-vscode/**`** → `cd ext/twig-vscode && npm run compile && npm run test:unit`
-- **Otherwise (.NET changes)** → `dotnet build` once, then `dotnet test --settings test.runsettings --no-restore --no-build`
+- **Otherwise (.NET changes)** → Use `dotnet_build` MCP tool first, then `dotnet_test` with appropriate project and settings
 - **Mixed** → run both suites.
 
 Add a twig note: `twig note --text "Tests: <count> passed"`

@@ -1,0 +1,10 @@
+{
+  "name": "twig-conductor-mcp-servers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Custom MCP servers for twig SDLC conductor workflows",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}

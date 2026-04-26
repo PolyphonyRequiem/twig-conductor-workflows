@@ -27,16 +27,16 @@ If a PR exists, return its info (number, url, title) without creating a duplicat
      - If approved, include the justification in the PR description under a
        `## PR Group Override` section
      - If not approved or no response, STOP and return to pg_router for re-grouping
-2. **Pre-submit validation** — quick build check and targeted tests:
-   - `dotnet build --no-restore -v quiet 2>&1` — must produce zero errors
-   - If build fails, fix the issues (stale references to renamed/removed methods,
-     missing usings, broken call sites) and commit the fixes before proceeding
-   - Run **only the test projects relevant to the changed files**, not the full suite:
-     - Changes in `src/Twig.Domain/` → `dotnet test tests/Twig.Domain.Tests --no-build --settings test.runsettings`
-     - Changes in `src/Twig.Infrastructure/` → `dotnet test tests/Twig.Infrastructure.Tests --no-build --settings test.runsettings`
-     - Changes in `src/Twig/` → `dotnet test tests/Twig.Cli.Tests --no-build --settings test.runsettings`
-     - Changes in `src/Twig.Mcp/` → `dotnet test tests/Twig.Mcp.Tests --no-build --settings test.runsettings`
-     - Changes in `src/Twig.Tui/` → `dotnet test tests/Twig.Tui.Tests --no-build --settings test.runsettings`
+2. **Pre-submit validation** — use MCP tools for structured results:
+   - Use the `dotnet_build` MCP tool — must return `success: true`
+   - If build fails, the structured errors tell you exactly which file/line/code to fix.
+     Fix the issues and commit the fixes before proceeding.
+   - Use the `dotnet_test` MCP tool with the relevant test project(s):
+     - Changes in `src/Twig.Domain/` → project: `tests/Twig.Domain.Tests`, settings: `test.runsettings`
+     - Changes in `src/Twig.Infrastructure/` → project: `tests/Twig.Infrastructure.Tests`
+     - Changes in `src/Twig/` → project: `tests/Twig.Cli.Tests`
+     - Changes in `src/Twig.Mcp/` → project: `tests/Twig.Mcp.Tests`
+     - Changes in `src/Twig.Tui/` → project: `tests/Twig.Tui.Tests`
    - Use `git diff --name-only main` to determine which source directories were touched
    - **Do NOT run the full test suite** — the CI/CD pipeline handles comprehensive testing on the PR
 3. Push the branch: `git push -u origin {{ pg_router.output.branch_name }}`

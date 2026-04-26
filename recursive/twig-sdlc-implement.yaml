@@ -62,6 +62,14 @@ workflow:
         command: pwsh
         args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
         tools: ["*"]
+      dotnet:
+        command: node
+        args: ["recursive/mcp-servers/dotnet-build-test.mjs"]
+        tools: ["*"]
+      csharp:
+        command: node
+        args: ["recursive/mcp-servers/csharp-intelligence.mjs"]
+        tools: ["*"]
   input:
     work_item_id:
       type: number
