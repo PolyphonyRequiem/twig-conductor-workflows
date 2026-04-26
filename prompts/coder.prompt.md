@@ -1,17 +1,10 @@
 Implement the following task.
-**Task:** #{{ task_manager.output.current_task_id }} — {{ task_manager.output.current_task_title }}
-**Description:** {{ task_manager.output.current_task_description }}
-**Issue:** #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }}
-**Branch:** {{ pr_group_manager.output.branch_name }}
+**Task:** #{{ task_router.output.task_id }} — {{ task_router.output.task_title }}
+**Issue:** #{{ task_router.output.issue_id }} — {{ task_router.output.issue_title }}
+**Branch:** {{ pg_router.output.branch_name }}
 **Plan:** {% if workflow is defined and workflow.input is defined and workflow.input.plan_path %}Read `{{ workflow.input.plan_path }}` for full design context and PG scope.{% else %}Check `docs/projects/` for the relevant plan document.{% endif %}
-**PR Group:** {{ pr_group_manager.output.current_pr_group }}
-{% if task_reviewer is defined and task_reviewer.output and not task_reviewer.output.approved %}
-**Previous review — fix these issues:**
-{{ task_reviewer.output.feedback | default('') }}
-{% for issue in task_reviewer.output.issues %}
-- {{ issue }}
-{% endfor %}
-{% endif %}
+**PR Group:** {{ pg_router.output.current_pg }}
+**Remaining tasks in this PG:** {{ task_router.output.remaining_count }}
 {% if pr_reviewer is defined and pr_reviewer.output and not pr_reviewer.output.approved %}
 **PR review feedback — fix these issues:**
 {{ pr_reviewer.output.feedback | default('') }}
@@ -21,8 +14,12 @@ Implement the following task.
 {% endif %}
 ## Steps
 
-### Step 0 — Prior State Check (< 3 minutes, MANDATORY)
-Before doing ANY research or implementation, check if this task was already worked on:
+### Step 0 — Read Task Details & Prior State Check (< 3 minutes, MANDATORY)
+First, read the full task description from ADO:
+- `twig set {{ task_router.output.task_id }}` — set active work item
+- Use the twig MCP tool `twig_show` to read the task's full description and acceptance criteria
+
+Then check if this task was already worked on:
 ```
 git --no-pager log --oneline -10
 git --no-pager diff --stat HEAD
@@ -30,7 +27,7 @@ git --no-pager status --short
 ```
 **If commits already exist for this task** (matching the task ID, issue, or description):
 - Verify the existing work is correct with *targeted* spot-checks — NOT a full re-verification
-- If it looks good: run the scope-appropriate tests (see **Step 4**), commit any uncommitted changes, and go straight to **Output**
+- If it looks good: run the scope-appropriate tests (see **Step 4**), commit any uncommitted changes, and go straight to **Step 5**
 - If it has problems: fix only what's broken, don't redo from scratch
 - **Budget: spend ≤ 5 minutes verifying prior work. Trust prior commits unless you find concrete evidence of breakage.**
 
@@ -74,14 +71,21 @@ Add a twig note: `twig note --text "Tests: <count> passed"`
 Never launch a `dotnet test` and an `npm`/`mocha` shell in parallel from the same repo
 — overlapping TypeScript/NuGet restores can produce minutes of silent stalls.
 
-### Step 5 — Commit & Push
+### Step 5 — Commit, Push & Close Task
 `git add -A && git commit -m "<descriptive message>" && git push`
 
 Push after every commit for crash recovery — if the workflow restarts, committed
-work is safe on the remote. The branch was already pushed by pr_group_manager.
+work is safe on the remote. The branch was already pushed by branch_manager.
+
+After a successful push, transition the task to Done:
+```
+twig set {{ task_router.output.task_id }}
+twig note --text "Done: <brief summary of what was implemented>"
+twig state Done
+```
 
 Do NOT implement anything beyond this single task.
-Do NOT implement tasks from other PR groups — stay within {{ pr_group_manager.output.current_pr_group }}.
+Do NOT implement tasks from other PR groups — stay within {{ pg_router.output.current_pg }}.
 If this task requires changes outside this repository, STOP and set output blocked with a description of what's needed elsewhere.
 
 ## Pre-Review Checklist (avoid review round-trips)

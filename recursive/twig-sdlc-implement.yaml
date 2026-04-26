@@ -1,17 +1,39 @@
-# twig-sdlc-implement — Implementation-only SDLC workflow
+# twig-sdlc-implement — Implementation-only SDLC workflow (v2)
 #
-# Takes an Epic/Issue with an approved plan and seeded work items,
-# then implements everything: coding, review, PR lifecycle, close-out.
+# Deterministic orchestration with single review layer.
+# Script agents handle routing; LLM agents handle creative work.
 #
-# This is the implementation phase extracted from twig-sdlc.yaml.
-# Same agents, same prompts, same quality — just skips planning.
+# Topology:
+#   duplicate_check → intake → work_tree_loader
+#     → pg_router (SCRIPT, outer loop)
+#       → branch_manager (SCRIPT, if PG not started)
+#       → task_router (SCRIPT, inner loop)
+#         → coder (LLM)
+#         → task_router (loops until all tasks done)
+#       → pr_submit (LLM, idempotent — detects existing PRs)
+#       → pr_reviewer (LLM, single review layer)
+#         → pr_fixer (LLM, if rejected) → pr_reviewer (fix loop)
+#       → pr_merge (LLM)
+#       → issue_closer (SCRIPT)
+#       → pg_router (loops to next PG)
+#     → pr_finalizer (LLM)
+#
+# Removed agents (v1 → v2):
+#   pr_group_manager (LLM) → replaced by pg_router.ps1 (script)
+#   task_manager (LLM)     → replaced by task_router.ps1 (script)
+#   task_reviewer           → removed (single review layer at PR level)
+#   issue_reviewer          → removed (single review layer at PR level)
+#   user_acceptance         → removed (PR review is the quality gate)
+#   reducer_code            → removed (unnecessary intermediate)
+#   reducer_issue           → removed (unnecessary intermediate)
+#   reducer_pr              → removed (unnecessary intermediate)
 #
 # Usage:
 #   conductor run twig-sdlc-implement@twig --input work_item_id=1814 --input plan_path="docs/projects/foo.plan.md" --web
 #   conductor run twig-sdlc-implement@twig --input work_item_id=1814 --web
 workflow:
   name: twig-sdlc-implement
-  description: Implementation-only SDLC — coding, review, PR lifecycle, and close-out
+  description: Implementation-only SDLC — deterministic orchestration, single review layer
   entry_point: duplicate_check
   runtime:
     provider: copilot
@@ -59,7 +81,7 @@ workflow:
   context:
     mode: explicit
   limits:
-    max_iterations: 200
+    max_iterations: 120
 
 agents:
   # ── PREFLIGHT ─────────────────────────────────────────────────────
@@ -119,105 +141,125 @@ agents:
       - "-WorkItemId"
       - "{{ intake.output.work_item_id }}"
     routes:
-      - to: pr_group_manager
+      - to: pg_router
 
-  # ── PR GROUP MANAGER ──────────────────────────────────────────────
-  - name: pr_group_manager
-    description: Outer orchestrator — PR groups, branches, issue closure after merge
-    model: claude-sonnet-4.6
+  # ── PG ROUTER (deterministic outer loop) ───────────────────────────
+  - name: pg_router
+    type: script
+    description: Picks the next PR group action based on ADO + git ground truth
     input:
-      - work_tree_loader.output
       - intake.output
-      - pr_group_manager.output?
-      - task_manager.output?
-      - pr_merge.output?
-    system_prompt: !file ../prompts/pr-group-manager.system.md
-    prompt: !file ../prompts/pr-group-manager.prompt.md
+      - issue_closer.output?
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/pg-router.ps1"
+      - "-WorkItemId"
+      - "{{ intake.output.work_item_id }}"
     output:
       action:
         type: string
-        description: start_tasks, submit_pr, or all_complete
-      current_pr_group:
+        description: "create_branch, route_tasks, submit_pr, or all_complete"
+      current_pg:
         type: string
       branch_name:
         type: string
-      pr_group_issue_ids:
+      issue_ids:
         type: array
-      pr_group_task_ids:
+      task_ids:
         type: array
-      completed_issues:
-        type: array
-      completed_prs:
-        type: array
-      progress_summary:
+      pr_number:
+        type: number
+      pr_url:
         type: string
+      completed_pgs:
+        type: array
+      remaining_pgs:
+        type: array
+      total_pgs:
+        type: number
     routes:
-      - to: task_manager
-        when: "{{ output.action == 'start_tasks' }}"
-      - to: reducer_pr
+      - to: branch_manager
+        when: "{{ output.action == 'create_branch' }}"
+      - to: task_router
+        when: "{{ output.action == 'route_tasks' }}"
+      - to: pr_submit
         when: "{{ output.action == 'submit_pr' }}"
       - to: pr_finalizer
         when: "{{ output.action == 'all_complete' }}"
 
-  # ── TASK MANAGER ──────────────────────────────────────────────────
-  - name: task_manager
-    description: Inner orchestrator — task lifecycle within a PR group
-    model: claude-sonnet-4.6
+  # ── BRANCH MANAGER (deterministic) ─────────────────────────────────
+  - name: branch_manager
+    type: script
+    description: Creates feature branch for a PR group from latest main
     input:
-      - pr_group_manager.output
-      - work_tree_loader.output
+      - pg_router.output
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/branch-manager.ps1"
+      - "-BranchName"
+      - "{{ pg_router.output.branch_name }}"
+    output:
+      branch_name:
+        type: string
+      created:
+        type: boolean
+    routes:
+      - to: task_router
+
+  # ── TASK ROUTER (deterministic inner loop) ─────────────────────────
+  - name: task_router
+    type: script
+    description: Picks the next undone task in a PR group from ADO ground truth
+    input:
       - intake.output
-      - task_manager.output?
-      - task_reviewer.output?
-      - issue_reviewer.output?
-      - user_acceptance.output?
-    system_prompt: !file ../prompts/task-manager.system.md
-    prompt: !file ../prompts/task-manager.prompt.md
+      - pg_router.output
+      - coder.output?
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/task-router.ps1"
+      - "-WorkItemId"
+      - "{{ intake.output.work_item_id }}"
+      - "-PGName"
+      - "{{ pg_router.output.current_pg }}"
     output:
       action:
         type: string
-        description: implement_task, issue_review, needs_acceptance, or pr_group_ready
-      current_pr_group:
+        description: "implement_task or all_tasks_done"
+      task_id:
+        type: number
+      task_title:
+        type: string
+      issue_id:
+        type: number
+      issue_title:
+        type: string
+      remaining_count:
+        type: number
+      current_pg:
         type: string
       branch_name:
-        type: string
-      current_issue_id:
-        type: number
-      current_issue_title:
-        type: string
-      current_task_id:
-        type: number
-        description: Current task ADO ID (0 if action is not implement_task)
-      current_task_title:
-        type: string
-      current_task_description:
-        type: string
-      completed_tasks:
-        type: array
-      reviewed_issues:
-        type: array
-      progress_summary:
         type: string
     routes:
       - to: coder
         when: "{{ output.action == 'implement_task' }}"
-      - to: reducer_issue
-        when: "{{ output.action == 'issue_review' }}"
-      - to: user_acceptance
-        when: "{{ output.action == 'needs_acceptance' }}"
-      - to: pr_group_manager
-        when: "{{ output.action == 'pr_group_ready' }}"
+      - to: pg_router
+        when: "{{ output.action == 'all_tasks_done' }}"
 
   # ── CODER ─────────────────────────────────────────────────────────
   - name: coder
-    description: Implements a single task
+    description: Implements a single task with incremental commits
     model: claude-opus-4.6-1m
     input:
-      - task_manager.output
-      - pr_group_manager.output
+      - task_router.output
+      - pg_router.output
       - intake.output
       - workflow.input.plan_path?
-      - task_reviewer.output?
       - pr_reviewer.output?
     system_prompt: !file ../prompts/coder.system.md
     prompt: !file ../prompts/coder.prompt.md
@@ -235,128 +277,14 @@ agents:
       edge_cases_handled:
         type: array
     routes:
-      - to: task_reviewer
+      - to: task_router
 
-  # ── TASK REVIEWER ─────────────────────────────────────────────────
-  - name: task_reviewer
-    description: Reviews task implementation
-    model: claude-sonnet-4.6
-    input:
-      - coder.output
-      - task_manager.output
-      - intake.output
-    system_prompt: !file ../prompts/task-reviewer.system.md
-    prompt: !file ../prompts/task-reviewer.prompt.md
-    output:
-      decision:
-        type: string
-      feedback:
-        type: string
-      issues:
-        type: array
-      approved:
-        type: boolean
-      strengths:
-        type: array
-    routes:
-      - to: task_manager
-        when: "{{ output.approved }}"
-      - to: coder
-        when: "{{ not output.approved }}"
-
-  # ── USER ACCEPTANCE ───────────────────────────────────────────────
-  - name: user_acceptance
-    type: human_gate
-    description: Conditional user acceptance gate
-    input:
-      - task_manager.output
-      - intake.output
-    prompt: |
-      ## User Acceptance Check
-      All tasks for issue #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }} are complete.
-      **Work Item:** #{{ intake.output.work_item_id }}
-      **Completed Tasks:** {{ task_manager.output.completed_tasks | json }}
-      **Progress:** {{ task_manager.output.progress_summary }}
-    options:
-      - label: "Accept — looks good"
-        value: accepted
-        route: task_manager
-      - label: "Request Changes"
-        value: changes
-        route: task_manager
-        prompt_for: feedback
-      - label: "Skip — no acceptance needed"
-        value: skipped
-        route: task_manager
-
-  # ── ISSUE REVIEW ──────────────────────────────────────────────────
-  - name: reducer_issue
-    description: Post-issue code sweep
-    model: claude-sonnet-4.6
-    input:
-      - task_manager.output
-      - intake.output
-    system_prompt: !file ../prompts/reducer.system.md
-    prompt: !file ../prompts/reducer-issue.prompt.md
-    output:
-      findings:
-        type: array
-      changes_applied:
-        type: array
-      lines_removed:
-        type: number
-    routes:
-      - to: issue_reviewer
-
-  - name: issue_reviewer
-    description: Reviews complete issue against acceptance criteria
-    model: claude-opus-4.6-1m
-    input:
-      - task_manager.output
-      - intake.output
-      - reducer_issue.output
-    system_prompt: !file ../prompts/issue-reviewer.system.md
-    prompt: !file ../prompts/issue-reviewer.prompt.md
-    output:
-      decision:
-        type: string
-      feedback:
-        type: string
-      issues:
-        type: array
-      approved:
-        type: boolean
-      strengths:
-        type: array
-    routes:
-      - to: task_manager
-
-  # ── PR LIFECYCLE ──────────────────────────────────────────────────
-  - name: reducer_pr
-    description: Pre-PR reduction sweep
-    model: claude-sonnet-4.6
-    input:
-      - pr_group_manager.output
-      - task_manager.output?
-      - intake.output
-    system_prompt: !file ../prompts/reducer.system.md
-    prompt: !file ../prompts/reducer-pr.prompt.md
-    output:
-      findings:
-        type: array
-      changes_applied:
-        type: array
-      total_lines_removed:
-        type: number
-    routes:
-      - to: pr_submit
-
+  # ── PR LIFECYCLE (single review layer) ─────────────────────────────
   - name: pr_submit
-    description: Creates GitHub PR
+    description: Creates or detects existing GitHub PR (idempotent)
     model: claude-sonnet-4.6
     input:
-      - pr_group_manager.output
-      - task_manager.output?
+      - pg_router.output
       - intake.output
       - work_tree_loader.output
     system_prompt: !file ../prompts/pr-submit.system.md
@@ -372,12 +300,12 @@ agents:
       - to: pr_reviewer
 
   - name: pr_reviewer
-    description: Reviews the full PR
+    description: Reviews the full PR (single review layer — no task/issue reviews)
     model: claude-opus-4.6-1m
     input:
       - pr_submit.output
       - intake.output
-      - pr_group_manager.output
+      - pg_router.output
     system_prompt: !file ../prompts/pr-reviewer.system.md
     prompt: !file ../prompts/pr-reviewer.prompt.md
     output:
@@ -404,7 +332,7 @@ agents:
         when: "{{ not output.approved }}"
 
   - name: pr_fixer
-    description: Fixes PR-level issues
+    description: Fixes PR-level review issues and pushes to branch
     model: claude-sonnet-4.6
     input:
       - pr_reviewer.output
@@ -418,14 +346,14 @@ agents:
       changes_summary:
         type: string
     routes:
-      - to: pr_submit
+      - to: pr_reviewer
 
   - name: pr_merge
     description: Merges approved PR and cleans up branch
     model: claude-sonnet-4.6
     input:
       - pr_submit.output
-      - pr_group_manager.output
+      - pg_router.output
       - intake.output
     system_prompt: !file ../prompts/pr-merge.system.md
     prompt: !file ../prompts/pr-merge.prompt.md
@@ -436,16 +364,40 @@ agents:
         type: string
       pr_number:
         type: number
-      pr_group_name:
-        type: string
-      branch_name:
-        type: string
       merge_commit:
         type: string
-      issue_ids:
+    routes:
+      - to: issue_closer
+        when: "{{ output.merged }}"
+      - to: pr_submit
+        when: "{{ not output.merged }}"
+
+  # ── ISSUE CLOSER (deterministic) ──────────────────────────────────
+  - name: issue_closer
+    type: script
+    description: Closes ADO issues for the current PG after PR merge
+    input:
+      - intake.output
+      - pg_router.output
+      - pr_merge.output
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/issue-closer.ps1"
+      - "-WorkItemId"
+      - "{{ intake.output.work_item_id }}"
+      - "-PGName"
+      - "{{ pg_router.output.current_pg }}"
+      - "-PRNumber"
+      - "{{ pr_merge.output.pr_number }}"
+    output:
+      closed_issues:
+        type: array
+      failed_closures:
         type: array
     routes:
-      - to: pr_group_manager
+      - to: pg_router
 
   # ── PR FINALIZER ──────────────────────────────────────────────────
   - name: pr_finalizer
@@ -453,7 +405,7 @@ agents:
     model: claude-sonnet-4.6
     input:
       - work_tree_loader.output
-      - pr_group_manager.output
+      - pg_router.output
       - intake.output
       - pr_finalizer.output?
     system_prompt: !file ../prompts/pr-finalizer.system.md
@@ -474,7 +426,7 @@ agents:
     routes:
       - to: $end
         when: "{{ output.verified }}"
-      - to: pr_group_manager
+      - to: pg_router
         when: "{{ not output.verified and output.verification_attempt < 10 }}"
       - to: verification_failure_gate
         when: "{{ not output.verified and output.verification_attempt >= 10 }}"
@@ -503,7 +455,6 @@ agents:
         route: $end
 
 output:
-  completed_prs: "{{ pr_group_manager.output.completed_prs | json if pr_group_manager is defined else '[]' }}"
-  completed_issues: "{{ pr_group_manager.output.completed_issues | json if pr_group_manager is defined else '[]' }}"
+  completed_pgs: "{{ pg_router.output.completed_pgs | json if pg_router is defined else '[]' }}"
   verified: "{{ pr_finalizer.output.verified if pr_finalizer is defined else false }}"
   summary: "{{ pr_finalizer.output.summary if pr_finalizer is defined else '' }}"

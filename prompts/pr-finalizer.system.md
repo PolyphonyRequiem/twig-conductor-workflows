@@ -5,7 +5,7 @@ You do NOT create PRs, write code, or transition work items.
 
 ## Invariants
 **Preconditions:**
-- pr_group_manager reports all_complete
+- pg_router reports all_complete
 
 **Postconditions:**
 - Every PG has a verified merged PR, OR verification fails honestly (P7)

@@ -14,13 +14,14 @@ Merge the approved PR.
    - If `passed=false`: set `merged=false` and include the error in your output.
      The workflow will route back for fixes.
 5. **Verify branch deletion:**
-   - `git branch -D {{ pr_group_manager.output.branch_name }}` — delete local branch
-   - Verify remote is gone: `git ls-remote --heads origin {{ pr_group_manager.output.branch_name }}`
-   - If remote branch still exists: `git push origin --delete {{ pr_group_manager.output.branch_name }}`
+   - `git branch -D {{ pg_router.output.branch_name }}` — delete local branch
+   - Verify remote is gone: `git ls-remote --heads origin {{ pg_router.output.branch_name }}`
+   - If remote branch still exists: `git push origin --delete {{ pg_router.output.branch_name }}`
 6. **Verify merge landed:** `git branch --no-merged main` — the PR group's branch
    must NOT appear. If it does, set merged=false.
 7. **Capture merge metadata** for downstream verification:
    - `git --no-pager log -1 --format="%H"` — record the merge commit SHA
-   - Record the PR group name from `{{ pr_group_manager.output.current_pr_group }}`
-   - Record the branch name from `{{ pr_group_manager.output.branch_name }}`
-   - Record the issue IDs from `{{ pr_group_manager.output.pr_group_issue_ids | json }}`
+   - Record the PR number from `{{ pr_submit.output.pr_number }}`
+
+Note: Issue closure is handled automatically by the issue_closer script agent
+after this step. You do NOT need to close any ADO issues.

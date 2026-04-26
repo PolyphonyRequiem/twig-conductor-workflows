@@ -9,7 +9,7 @@ Key constraints:
 - TreatWarningsAsErrors=true, nullable reference types enabled
 - Prefer sealed classes, primary constructors, record types
 - Register DI in TwigServiceRegistration.cs or Program.cs
-- Tests use MSTest v4
+- Tests use xUnit + Shouldly + NSubstitute
 Commit conventions:
 - Incremental, complete, non-breaking commits
 - Each commit should compile and pass tests

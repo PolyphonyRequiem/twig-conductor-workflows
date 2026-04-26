@@ -171,12 +171,12 @@ agents:
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
       prompt: ""
     output:
-      observations:
+      completed_pgs:
+        type: array
+      verified:
+        type: boolean
+      summary:
         type: string
-      completed_prs:
-        type: array
-      completed_issues:
-        type: array
     routes:
       - to: close_out
 

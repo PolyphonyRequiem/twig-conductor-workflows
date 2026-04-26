@@ -1,13 +1,9 @@
 Verify that all PR groups have been merged before close-out proceeds.
 
-**PR Groups from work tree:**
-{{ work_tree_loader.output.stdout }}
+**Completed PGs (from pg_router):**
+{{ pg_router.output.completed_pgs | json }}
 
-**Completed PRs (claimed by pr_group_manager):**
-{{ pr_group_manager.output.completed_prs | json }}
-
-**Completed Issues (claimed by pr_group_manager):**
-{{ pr_group_manager.output.completed_issues | json }}
+**Total PGs:** {{ pg_router.output.total_pgs }}
 
 {% if pr_finalizer is defined and pr_finalizer.output %}
 **Previous verification attempt #{{ pr_finalizer.output.verification_attempt }}:**
@@ -17,49 +13,44 @@ Verify that all PR groups have been merged before close-out proceeds.
 
 ## Verification Steps
 
-### 1. Cross-reference PR groups against merged PRs
-For EACH PR group in the work tree:
-- Check if it appears in completed_prs
-- If missing → this PR group was never submitted or merged
+### 1. Cross-reference completed PGs against ground truth
+For EACH PR group discovered by work_tree_loader, verify it appears in the
+completed PGs list from pg_router. If any are missing, investigate.
 
 ### 2. Check for unmerged feature branches
 ```
 git checkout main && git pull
 git branch --no-merged main
 ```
-Cross-reference any unmerged branches against the PR groups' `branch_name_suggestion`.
-If a branch matches a PR group that should be complete, that group's work is orphaned.
+Cross-reference any unmerged branches against PG branch names (format: `feature/pg-N`).
+If a branch matches a PG that should be complete, that group's work is orphaned.
 
 ### 3. Verify merged PRs via GitHub
-For each PR number in completed_prs:
 ```
-gh pr view <pr_number> --json state --jq '.state'
+gh pr list --state merged --limit 50 --json number,headRefName,mergedAt
 ```
-Must return "MERGED".
+Cross-reference each PG's branch name against merged PRs. Every PG must have
+a corresponding merged PR.
 
-### 4. Check for collapsed PR groups
-Sometimes pr_group_manager merges multiple PR groups into a single PR (e.g.,
-PG-2's work gets included in PG-1's PR). If a PR group has no matching PR but:
-- Its branch doesn't exist (deleted after merge)
-- No unmerged branches match its name
-- The code changes are present on main (verify with `git log --oneline --all --grep="<task keyword>"`)
-- The parent Issue is Done with all Tasks Done
-
-Then the PR group was likely **collapsed into another PR**. In this case,
-mark it as verified with a note about the collapse.
-
-### 5. Verify Issue states match reality
+### 4. Verify Issue states match reality
 For each Issue in the work tree:
 ```
 twig set <issue_id> --output json
 ```
-- If the Issue is "Done" but its PR group is NOT in completed_prs AND the code
-  is NOT on main → **state integrity violation**
+- If the Issue is "Done" but no merged PR exists for its PG → **state integrity violation**
 - Record any violations found
+
+### 5. Verify Task states (defense-in-depth)
+For each PG that has a verified merged PR, spot-check Tasks:
+```
+twig set <task_id> --output json
+```
+- If ANY Task is NOT in state "Done" → **state integrity violation**
+- Report any remaining violations so close_out can handle them
 
 ## Decision
 
-- If ALL PR groups have merged PRs (or were verified as collapsed) and no state violations → set `verified: true`
+- If ALL PR groups have merged PRs and no state violations → set `verified: true`
 - If ANY PR group is genuinely missing merged code:
   - Set `verified: false`
   - Set `unmerged_pr_groups` to the list of PR group names that lack merged PRs
@@ -78,8 +69,7 @@ Set `verification_attempt` to 1.
 set `verified: false` with the specific unmerged PR groups and violations. Do NOT
 auto-approve after any number of attempts. The workflow will retry up to 10 times
 to allow for merge delays and CI propagation, but the final answer must reflect
-reality. If verification still fails after all retries, the workflow will terminate
-with a failure report — this is the correct behavior. (P7: Fail Honestly)
+reality. (P7: Fail Honestly)
 
 ## Output
 - `verified` (boolean): True ONLY if every PR group has confirmed merged code
