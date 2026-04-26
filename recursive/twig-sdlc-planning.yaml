@@ -13,7 +13,7 @@
 workflow:
   name: twig-sdlc-planning
   description: SDLC Planning — modular design, review, seed pipeline
-  entry_point: duplicate_check
+  entry_point: preflight_lite
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6
@@ -50,6 +50,51 @@ workflow:
     max_iterations: 100
 
 agents:
+  # ── PREFLIGHT LITE ────────────────────────────────────────────
+  - name: preflight_lite
+    description: Lightweight preflight — gh auth, git repo, ADO connectivity
+    type: script
+    input:
+      - workflow.input.work_item_id?
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/preflight-lite.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id if workflow.input.work_item_id else 0 }}"
+    routes:
+      - to: duplicate_check
+        when: "{{ output.ready }}"
+      - to: preflight_lite_gate
+
+  # ── PREFLIGHT LITE GATE ───────────────────────────────────────
+  - name: preflight_lite_gate
+    type: human_gate
+    description: Lite preflight checks failed — human review required
+    input:
+      - preflight_lite.output
+    prompt: |
+      ## Preflight Check Failed
+
+      One or more required checks failed — workflow cannot proceed until fixed:
+
+      {% for check in preflight_lite.output.required_checks %}
+      {% if not check.passed %}
+      - ❌ **{{ check.name }}**: {{ check.detail }}
+        {% if check.remediation %}→ Fix: {{ check.remediation }}{% endif %}
+      {% endif %}
+      {% endfor %}
+
+      **Summary:** {{ preflight_lite.output.summary }}
+    options:
+      - label: "Fixed — retry preflight"
+        value: retry
+        route: preflight_lite
+      - label: "Abort"
+        value: abort
+        route: $end
+
   # ── DUPLICATE CHECK ─────────────────────────────────────────
   - name: duplicate_check
     description: Preflight — detect conflicting conductor runs
@@ -155,6 +200,8 @@ agents:
     input_mapping:
       work_item_id: "{{ intake.output.work_item_id }}"
       plan_path: "{{ design.output.plan_path }}"
+      title: "{{ intake.output.title if intake.output.title is defined else '' }}"
+      item_type: "{{ intake.output.item_type if intake.output.item_type is defined else '' }}"
       pr_groups: "{{ design.output.pr_groups | json }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
     output:

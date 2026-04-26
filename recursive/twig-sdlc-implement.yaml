@@ -12,7 +12,7 @@
 workflow:
   name: twig-sdlc-implement
   description: Implementation-only SDLC — coding, review, PR lifecycle, and close-out
-  entry_point: duplicate_check
+  entry_point: preflight_lite
   runtime:
     provider: copilot
     default_model: claude-sonnet-4.6
@@ -57,6 +57,51 @@ workflow:
     max_iterations: 200
 
 agents:
+  # ── PREFLIGHT LITE ────────────────────────────────────────────
+  - name: preflight_lite
+    description: Lightweight preflight — gh auth, git repo, ADO connectivity
+    type: script
+    input:
+      - workflow.input.work_item_id?
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/preflight-lite.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id if workflow.input.work_item_id else 0 }}"
+    routes:
+      - to: duplicate_check
+        when: "{{ output.ready }}"
+      - to: preflight_lite_gate
+
+  # ── PREFLIGHT LITE GATE ───────────────────────────────────────
+  - name: preflight_lite_gate
+    type: human_gate
+    description: Lite preflight checks failed — human review required
+    input:
+      - preflight_lite.output
+    prompt: |
+      ## Preflight Check Failed
+
+      One or more required checks failed — workflow cannot proceed until fixed:
+
+      {% for check in preflight_lite.output.required_checks %}
+      {% if not check.passed %}
+      - ❌ **{{ check.name }}**: {{ check.detail }}
+        {% if check.remediation %}→ Fix: {{ check.remediation }}{% endif %}
+      {% endif %}
+      {% endfor %}
+
+      **Summary:** {{ preflight_lite.output.summary }}
+    options:
+      - label: "Fixed — retry preflight"
+        value: retry
+        route: preflight_lite
+      - label: "Abort"
+        value: abort
+        route: $end
+
   # ── PREFLIGHT ─────────────────────────────────────────────────────
   - name: duplicate_check
     description: Preflight — abort if another conductor run already owns this work item
@@ -149,7 +194,7 @@ agents:
     routes:
       - to: task_manager
         when: "{{ output.action == 'start_tasks' }}"
-      - to: reducer_pr
+      - to: pr_submit
         when: "{{ output.action == 'submit_pr' }}"
       - to: pr_finalizer
         when: "{{ output.action == 'all_complete' }}"
@@ -196,7 +241,7 @@ agents:
     routes:
       - to: coder
         when: "{{ output.action == 'implement_task' }}"
-      - to: reducer_issue
+      - to: issue_reviewer
         when: "{{ output.action == 'issue_review' }}"
       - to: user_acceptance
         when: "{{ output.action == 'needs_acceptance' }}"
@@ -239,9 +284,14 @@ agents:
       - coder.output
       - task_manager.output
       - intake.output
+      - task_reviewer.output?
     system_prompt: !file ../prompts/task-reviewer.system.md
     prompt: !file ../prompts/task-reviewer.prompt.md
     output:
+      dimensions:
+        type: object
+      score:
+        type: number
       decision:
         type: string
       feedback:
@@ -252,6 +302,8 @@ agents:
         type: boolean
       strengths:
         type: array
+      review_attempt:
+        type: number
     routes:
       - to: task_manager
         when: "{{ output.approved }}"
@@ -284,34 +336,19 @@ agents:
         route: task_manager
 
   # ── ISSUE REVIEW ──────────────────────────────────────────────────
-  - name: reducer_issue
-    description: Post-issue code sweep
-    model: claude-sonnet-4.6
-    input:
-      - task_manager.output
-      - intake.output
-    system_prompt: !file ../prompts/reducer.system.md
-    prompt: !file ../prompts/reducer-issue.prompt.md
-    output:
-      findings:
-        type: array
-      changes_applied:
-        type: array
-      lines_removed:
-        type: number
-    routes:
-      - to: issue_reviewer
-
   - name: issue_reviewer
     description: Reviews complete issue against acceptance criteria
     model: claude-opus-4.6-1m
     input:
       - task_manager.output
       - intake.output
-      - reducer_issue.output
     system_prompt: !file ../prompts/issue-reviewer.system.md
     prompt: !file ../prompts/issue-reviewer.prompt.md
     output:
+      dimensions:
+        type: object
+      score:
+        type: number
       decision:
         type: string
       feedback:
@@ -326,25 +363,6 @@ agents:
       - to: task_manager
 
   # ── PR LIFECYCLE ──────────────────────────────────────────────────
-  - name: reducer_pr
-    description: Pre-PR reduction sweep
-    model: claude-sonnet-4.6
-    input:
-      - pr_group_manager.output
-      - task_manager.output?
-      - intake.output
-    system_prompt: !file ../prompts/reducer.system.md
-    prompt: !file ../prompts/reducer-pr.prompt.md
-    output:
-      findings:
-        type: array
-      changes_applied:
-        type: array
-      total_lines_removed:
-        type: number
-    routes:
-      - to: pr_submit
-
   - name: pr_submit
     description: Creates GitHub PR
     model: claude-sonnet-4.6
@@ -375,6 +393,12 @@ agents:
     system_prompt: !file ../prompts/pr-reviewer.system.md
     prompt: !file ../prompts/pr-reviewer.prompt.md
     output:
+      dimensions:
+        type: object
+        description: Per-dimension scoring breakdown (correctness, safety, completeness, conventions, reviewability)
+      score:
+        type: number
+        description: Composite weighted score (0-100)
       decision:
         type: string
       feedback:
