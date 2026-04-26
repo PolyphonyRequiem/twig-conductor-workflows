@@ -32,6 +32,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+try {
+# ── Step 0: Sync local cache from ADO ────────────────────────────────────────
+# The local .twig SQLite cache may be stale (copied from another worktree,
+# or state changed by another agent/process since last sync). Force a refresh
+# before reading any state to prevent routing on stale data.
+
+twig sync --output json 2>$null | Out-Null
+
 # ── Step 1: Read work item and tree ──────────────────────────────────────────
 
 $treeJson = twig set $WorkItemId --output json 2>$null | Out-Null
@@ -164,14 +172,16 @@ elseif (-not $errorMsg -and -not $intentConflict -and -not $needsCleanup) {
     }
 
     if (-not $errorMsg) {
-        if ($hasSeededChildren) {
-            # Children exist — go to implementation regardless of plan status.
-            # The plan is context (P2), not required for implementation.
+        if ($hasSeededChildren -and $implementationStatus -eq 'in_progress') {
+            $phase = 'ready_for_implementation'
+        }
+        elseif ($hasSeededChildren) {
+            # Children exist but no work started — implementation can begin
             $phase = 'ready_for_implementation'
         }
         elseif ($hasPlan) {
-            # Plan exists but no children — planning needs to seed
-            $phase = 'needs_planning'
+            # Plan exists but no children — skip design, go to seeding
+            $phase = 'needs_seeding'
         }
         else {
             $phase = 'needs_planning'
@@ -202,3 +212,8 @@ $output = [ordered]@{
 }
 
 $output | ConvertTo-Json -Depth 3
+}
+catch {
+    [ordered]@{ error = $_.Exception.Message; phase = 'error'; work_item_id = $WorkItemId } | ConvertTo-Json
+    exit 1
+}

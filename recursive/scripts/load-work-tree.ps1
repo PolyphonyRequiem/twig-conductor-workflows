@@ -20,6 +20,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+try {
+# ── Step 0: Sync local cache from ADO ────────────────────────────────────────
+# Ensure the local .twig cache reflects the latest ADO state before loading
+# the work tree. Prevents stale state from prior runs or other agents.
+
+twig sync --output json 2>$null | Out-Null
+
 # ── Step 1: Load the work tree from ADO ──────────────────────────────────────
 
 twig set $WorkItemId --output json 2>$null | Out-Null
@@ -45,8 +52,17 @@ if ($focus.type -eq 'Epic') {
             tasks      = @()
         }
         # Get tasks under this issue
-        if ($child.children) {
-            foreach ($task in $child.children) {
+        # First try: grandchildren from depth-2 tree (works if twig tree depth bug is fixed)
+        $issueTasks = $child.children
+        # Fallback: if no grandchildren returned, drill into the Issue directly
+        if (-not $issueTasks -or $issueTasks.Count -eq 0) {
+            twig set $child.id --output json 2>$null | Out-Null
+            $issueTreeJson = twig tree --depth 1 --output json 2>$null
+            $issueTree = $issueTreeJson | ConvertFrom-Json
+            $issueTasks = $issueTree.children
+        }
+        if ($issueTasks) {
+            foreach ($task in $issueTasks) {
                 $allTasks += [ordered]@{
                     id    = $task.id
                     title = $task.title
@@ -56,12 +72,14 @@ if ($focus.type -eq 'Epic') {
                 }
                 $issue.task_count++
             }
-            $issue.tasks = @($child.children | ForEach-Object {
+            $issue.tasks = @($issueTasks | ForEach-Object {
                 [ordered]@{ id = $_.id; title = $_.title; state = $_.state; tags = $_.tags }
             })
         }
         $issues += $issue
     }
+    # Restore focus to the Epic after drilling into Issues
+    twig set $WorkItemId --output json 2>$null | Out-Null
 }
 elseif ($focus.type -eq 'Issue') {
     $issues += [ordered]@{
@@ -181,8 +199,8 @@ if ($prListJson) {
 
 foreach ($pg in $prGroups) {
     $branchSlug = $pg.branch_name_suggestion
-    # Check if a merged PR exists for this PG's branch
-    $matchedPR = $mergedPRs | Where-Object { $_.headRefName -eq $branchSlug -or $_.headRefName -match ($pg.name -replace '-', '[-/]') }
+    # Check if a merged PR exists for this PG's branch — exact branch name match only
+    $matchedPR = $mergedPRs | Where-Object { $_.headRefName -eq $branchSlug }
 
     # Check if all tasks in this PG are Done
     $pgTasksDone = $true
@@ -191,8 +209,43 @@ foreach ($pg in $prGroups) {
         if ($task -and $task.state -ne 'Done') { $pgTasksDone = $false; break }
     }
 
-    $pg.completed = ($matchedPR.Count -gt 0) -or ($pg.task_ids.Count -gt 0 -and $pgTasksDone)
+    # When PG tags exist, a merged PR is sufficient to mark complete (the PG
+    # structure was explicitly defined by the seeder). When falling back to a
+    # single untagged PG, also require all tasks Done — a merged PR alone is
+    # unreliable because the fallback branch name may collide with prior PRs.
+    if ($taggedCount -eq 0) {
+        $pg.completed = ($matchedPR.Count -gt 0) -and $pgTasksDone
+    } else {
+        $pg.completed = ($matchedPR.Count -gt 0)
+    }
     $pg.merged_pr = if ($matchedPR.Count -gt 0) { $matchedPR[0].number } else { 0 }
+
+    # Identify non-Done items in completed PGs (for resume reconciliation)
+    # Tasks: only include "Doing" tasks (started but interrupted). "To Do" tasks
+    # may be genuinely unimplemented and should NOT be auto-closed.
+    # Issues: include all non-Done (Issues represent PG-level scope).
+    $pg.non_done_task_ids = @()
+    $pg.stale_doing_task_ids = @()
+    $pg.non_done_issue_ids = @()
+    if ($pg.completed) {
+        foreach ($taskId in $pg.task_ids) {
+            $task = $allTasks | Where-Object { $_.id -eq $taskId }
+            if ($task -and $task.state -ne 'Done') {
+                $pg.non_done_task_ids += $task.id
+                if ($task.state -eq 'Doing') {
+                    $pg.stale_doing_task_ids += $task.id
+                }
+            }
+        }
+        foreach ($issueId in $pg.issue_ids) {
+            $issue = $issues | Where-Object { $_.id -eq $issueId }
+            if ($issue -and $issue.state -ne 'Done') { $pg.non_done_issue_ids += $issue.id }
+        }
+        $pg.needs_reconciliation = ($pg.stale_doing_task_ids.Count -gt 0 -or $pg.non_done_issue_ids.Count -gt 0)
+    }
+    else {
+        $pg.needs_reconciliation = $false
+    }
 }
 
 $completedPGs = @($prGroups | Where-Object { $_.completed })
@@ -212,8 +265,23 @@ $nextPG = if ($pendingPGs.Count -gt 0) { $pendingPGs[0].name } else { '' }
     completed_pgs   = @($completedPGs | ForEach-Object { $_.name })
     pending_pgs     = @($pendingPGs | ForEach-Object { $_.name })
     next_pg         = $nextPG
+    pgs_needing_reconciliation = @($prGroups | Where-Object { $_.needs_reconciliation } | ForEach-Object {
+        $pg = $_
+        [ordered]@{
+            name                  = $pg.name
+            merged_pr             = $pg.merged_pr
+            stale_doing_task_ids  = $pg.stale_doing_task_ids
+            non_done_issue_ids    = $pg.non_done_issue_ids
+            skipped_todo_task_ids = @($pg.non_done_task_ids | Where-Object { $_ -notin $pg.stale_doing_task_ids })
+        }
+    })
     total_tasks     = $allTasks.Count
     total_issues    = $issues.Count
     tagged_items    = $taggedCount
     untagged_items  = ($allItems.Count - $taggedCount)
 } | ConvertTo-Json -Depth 5
+}
+catch {
+    [ordered]@{ error = $_.Exception.Message } | ConvertTo-Json
+    exit 1
+}

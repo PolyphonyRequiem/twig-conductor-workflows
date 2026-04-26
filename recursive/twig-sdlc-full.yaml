@@ -74,6 +74,7 @@ agents:
       - to: implementation
         when: "{{ output.phase == 'ready_for_implementation' }}"
       - to: planning
+        when: "{{ output.phase == 'needs_seeding' or output.phase == 'needs_planning' }}"
 
   # ── INTENT CORRECTION GATE ──────────────────────────────────────
   - name: intent_correction_gate
