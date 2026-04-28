@@ -1,14 +1,14 @@
 Create the ADO work tree from the implementation plan.
-**Parent:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
-**Type:** {{ intake.output.item_type }}
-**Plan:** Read `{{ intake.output.work_item_id }}` to get the structure
+**Parent:** #{{ workflow.input.work_item_id }} — {{ workflow.input.title }}
+**Type:** {{ workflow.input.item_type }}
+**Plan:** Read `{{ workflow.input.work_item_id }}` to get the structure
 
 ## Plan Status Update (FIRST)
 Update the plan file's Status line to `> **Status**: 🔨 In Progress` before creating any items.
 
 ## Duplicate Guard (MANDATORY first step)
 Before creating ANY items, inventory what already exists:
-1. `twig set {{ intake.output.work_item_id }} --output json`
+1. `twig set {{ workflow.input.work_item_id }} --output json`
 2. `twig tree --output json` to list existing children (Issues or Tasks)
 3. For each existing Issue, drill in: `twig set <id>; twig tree --output json`
    to discover its child Tasks.
@@ -26,7 +26,7 @@ Before creating ANY items, inventory what already exists:
 
 ## Steps (create only missing items)
 1. Read the plan file to extract the ADO structure (Issues → Tasks) and PR groups
-2. Set context to the parent: `twig set {{ intake.output.work_item_id }} --output json`
+2. Set context to the parent: `twig set {{ workflow.input.work_item_id }} --output json`
 3. **Create missing Issues** (if input is an Epic):
    a. Create: `twig seed new --title "<issue title>" --type Issue --output json`
    b. Publish: `twig seed publish --all --output json`
@@ -50,7 +50,7 @@ Before creating ANY items, inventory what already exists:
    tag with the primary PG only.
 6. **Link the plan to the root work item** (MANDATORY):
    ```
-   twig set {{ intake.output.work_item_id }}
+   twig set {{ workflow.input.work_item_id }}
    twig link artifact "<plan_url>" --name "Plan Document"
    ```
    Where `<plan_url>` is the GitHub URL to the plan file on the current branch.
@@ -69,7 +69,7 @@ The tag is the operational contract — the plan is context only.
 ## ADO ↔ Plan Reconciliation (MANDATORY after seeding)
 
 After all items are created/reused, verify full coverage:
-1. `twig set {{ intake.output.work_item_id }} --output json`
+1. `twig set {{ workflow.input.work_item_id }} --output json`
 2. `twig tree --output json` — list ALL children in ADO
 3. Compare the ADO tree against the plan's Issue list:
    - Every ADO child Issue must map to a plan Issue (or be explicitly noted as

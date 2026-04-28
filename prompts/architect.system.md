@@ -24,7 +24,7 @@ The plan defines both the ADO structure AND the PR groupings separately.
 
 ## Invariants
 **Preconditions:**
-- `intake.output.work_item_id` is a valid ADO work item
+- A valid ADO work item ID is available (via `intake.output` or `workflow.input`)
 - Codebase is accessible for research
 
 **Postconditions:**

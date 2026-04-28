@@ -18,15 +18,18 @@ Record all child IDs, their types, and states.
 Check for branches and PRs:
 ```
 git branch -a | Select-String "{{ workflow.input.work_item_id }}"
-gh pr list --state open --search "{{ workflow.input.work_item_id }}" --json number,title,headRefName
 ```
+Use the `list_pull_requests` MCP tool to find open PRs:
+- owner: `PolyphonyRequiem`, repo: `twig`, state: `open`
+- Filter results for PRs related to work item {{ workflow.input.work_item_id }}
+- **Do NOT use `gh pr list` CLI** — the `gh` CLI hangs in non-TTY environments.
 
 ### 2. Abandon open PRs
 
-For each open PR related to this work item:
-```
-gh pr close <pr_number> --comment "Closing: SDLC redo requested for #{{ workflow.input.work_item_id }}"
-```
+For each open PR related to this work item, use the `update_pull_request` MCP tool
+to close it (set state to "closed"), or if a close tool is available use that.
+Add a comment explaining: "Closing: SDLC redo requested for #{{ workflow.input.work_item_id }}"
+- **Do NOT use `gh pr close` CLI** — the `gh` CLI hangs in non-TTY environments.
 
 ### 3. Delete feature branches
 

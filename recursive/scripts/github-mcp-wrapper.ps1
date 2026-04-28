@@ -8,6 +8,7 @@
     Stdin/stdout are transparently proxied to the container.
 #>
 $ErrorActionPreference = 'Stop'
+$env:GH_PROMPT_DISABLED = "1"
 
 $token = gh auth token 2>&1
 if ($LASTEXITCODE -ne 0) {

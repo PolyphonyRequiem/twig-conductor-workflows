@@ -27,6 +27,10 @@ workflow:
       twig:
         command: twig-mcp
         tools: ["*"]
+      github:
+        command: pwsh
+        args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
+        tools: ["*"]
   input:
     work_item_id:
       type: string
@@ -113,6 +117,8 @@ agents:
       - twig_note
       - twig_sync
       - twig_update
+      - list_pull_requests
+      - update_pull_request
     input:
       - workflow.input.work_item_id
       - state_detector.output
@@ -201,6 +207,8 @@ agents:
       - twig_state
       - twig_note
       - twig_sync
+      - list_pull_requests
+      - pull_request_read
     input:
       - workflow.input.work_item_id
       - state_detector.output?
@@ -231,6 +239,7 @@ agents:
       - twig_sync
       - twig_update
       - twig_note
+      - list_pull_requests
     input:
       - workflow.input.work_item_id
       - state_detector.output?

@@ -41,8 +41,10 @@ Do NOT assume implementing agents have already transitioned the Epic.
    - The pr_finalizer agent has already verified PR group completeness upstream.
      Review its `summary` and `state_violations` above.
    - As a defense-in-depth check, also verify directly:
-     For each PR in the completed list:
-     `gh pr view <pr_number> --json state --jq '.state'` — must be "MERGED"
+     For each PR in the completed list, use the `pull_request_read` MCP tool
+     (method: `get`, owner: `PolyphonyRequiem`, repo: `twig`, pullNumber: `<pr_number>`)
+     to check its state — must be "MERGED".
+     **Do NOT use `gh pr view` CLI** — the `gh` CLI hangs in non-TTY environments.
    - If any PR is not merged, STOP and report the issue — do not proceed
    - Also verify main has the commits: `git checkout main && git pull`
 1b. **Verify no unmerged feature branches** (guard against orphaned work):
@@ -111,6 +113,15 @@ Do NOT assume implementing agents have already transitioned the Epic.
 8. **Ensure all work is upstream:**
    - `git push` — push any pending commits (e.g., reduction sweeps, plan status updates)
    - If push fails (nothing to push), that's fine — continue
+8b. **Clean up merged feature and planning branches** (prevent stale branch accumulation):
+   - List remote branches that match this epic's workflow:
+     `git branch -r --merged main | grep -E "origin/(feature/|planning/)" | sed "s|origin/||"`
+   - For each matched branch, delete from origin:
+     `git push origin --delete <branch-name>`
+   - Also delete the corresponding local tracking branches:
+     `git branch -d <branch-name>` (ignore errors for branches that don't exist locally)
+   - **Do NOT delete** `main`, `origin/main`, or any branch not matching `feature/*` or `planning/*`
+   - If deletion fails (e.g., branch protection), log a warning but continue — this is cleanup, not critical path
 9. **Final commit** (only if there are uncommitted changes AND `epic_completed` is true):
    - **If `epic_completed` is false**: **SKIP this step.** Do not create a close commit for incomplete work.
    - `git diff --stat HEAD` — check for changes

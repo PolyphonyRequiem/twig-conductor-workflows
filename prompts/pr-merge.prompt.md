@@ -2,7 +2,12 @@ Merge the approved PR.
 **PR:** {{ pr_submit.output.pr_url }} (#{{ pr_submit.output.pr_number }})
 
 ## Steps
-1. Merge: `gh pr merge {{ pr_submit.output.pr_number }} --merge --delete-branch`
+1. Merge using the `merge_pull_request` MCP tool:
+   - owner: `PolyphonyRequiem`
+   - repo: `twig`
+   - pullNumber: `{{ pr_submit.output.pr_number }}`
+   - merge_method: `merge`
+   - **Do NOT use `gh pr merge` CLI** — always use the MCP tool.
 2. Switch to main: `git checkout main && git pull`
 3. Verify clean state: `git status`
 4. **Post-merge regression testing:**

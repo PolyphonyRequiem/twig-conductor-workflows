@@ -20,6 +20,35 @@ and `next_pg`. Start from `next_pg` — do NOT re-process completed PGs.
 If ALL PGs are already completed (`next_pg` is empty), set `action: all_complete`
 immediately.
 
+## Resume Reconciliation (MANDATORY before starting next_pg)
+
+On **first invocation** (resume), the work tree may contain PGs whose PRs are
+merged but whose ADO items were never transitioned to Done (workflow crash/restart).
+The work tree loader outputs `pgs_needing_reconciliation` — a list of such PGs.
+
+If `pgs_needing_reconciliation` is non-empty, reconcile BEFORE starting any new work:
+
+For each entry in `pgs_needing_reconciliation`:
+
+1. **Verify the merged PR**: Use the `pull_request_read` MCP tool (method: `get`, pullNumber: `<merged_pr>`) — state must be "MERGED"
+   - **Do NOT use `gh pr view` CLI** — the `gh` CLI hangs in non-TTY environments.
+2. **Transition stale "Doing" Tasks** (crash-interrupted tasks):
+   For each task_id in `stale_doing_task_ids`:
+   - `twig set <task_id> --output json`
+   - `twig note --text "Resume reconciliation: closed after PR #<merged_pr> merged to main" --output json`
+   - `twig state Done --output json`
+3. **Transition non-Done Issues**:
+   For each issue_id in `non_done_issue_ids`:
+   - `twig set <issue_id> --output json`
+   - `twig note --text "Resume reconciliation: closed after PR #<merged_pr> merged to main" --output json`
+   - `twig state Done --output json`
+4. **DO NOT close "To Do" tasks** — `skipped_todo_task_ids` lists tasks that were
+   never started. These may be genuinely unimplemented and should remain open.
+   Log them in your `progress_summary` for visibility.
+5. **Track**: Add reconciled issues to `completed_issues` and reconciled PG names to `completed_prs`.
+
+Only after reconciliation is complete, proceed to `next_pg` (or `all_complete` if no pending PGs remain).
+
 ## Staleness Check (before starting each new PG)
 
 When starting a NEW PR group (not continuing one in progress), run the staleness
@@ -71,6 +100,7 @@ Set action=submit_pr to send to the PR pipeline.
 
 1. **First invocation (no prior state):**
    - Create branch for first PR group: `git checkout -b <branch_name>`
+   - Push immediately for crash recovery and visibility: `git push -u origin <branch_name>`
    - Start first issue: `twig set <id> --output json` → `twig state Doing --output json`
    - Set action=start_tasks
 
@@ -82,7 +112,8 @@ Set action=submit_pr to send to the PR pipeline.
    - Add PR group to completed_prs
    - If more PR groups remain:
      a. Create new branch: `git checkout main && git pull && git checkout -b <next_branch_name>`
-     b. Set action=start_tasks
+     b. Push immediately: `git push -u origin <next_branch_name>`
+     c. Set action=start_tasks
    - If all PR groups complete:
      Set action=all_complete
 
@@ -100,7 +131,8 @@ After pr_merge returns and before closing Issues or starting the next PR group,
 you MUST run this verification sequence:
 
 1. **Verify PR is actually merged:**
-   `gh pr view <pr_number> --json state --jq '.state'` — must return "MERGED"
+   Use the `pull_request_read` MCP tool (method: `get`, pullNumber: `<pr_number>`) — state must be "MERGED"
+   - **Do NOT use `gh pr view` CLI** — the `gh` CLI hangs in non-TTY environments.
    If not "MERGED", STOP and set action=submit_pr to retry.
 
 2. **Verify branch is merged to main:**

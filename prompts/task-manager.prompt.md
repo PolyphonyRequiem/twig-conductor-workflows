@@ -60,6 +60,30 @@ the next action, always verify the ground truth:
 
 This prevents skipping tasks whose IDs may have shifted between workflow runs.
 
+## Circuit Breaker — Same-Task Redispatch Detection (MANDATORY)
+
+Track which tasks you have ALREADY dispatched to the coder. If `task_reviewer`
+approved a task and you are about to dispatch the SAME task_id again, something
+is wrong — likely `twig state Done` failed silently.
+
+**Detection:** Before setting `action=implement_task`, check:
+- Was this exact `current_task_id` already in your previous output's `current_task_id`?
+- Did `task_reviewer` just APPROVE it (check `task_reviewer.output.approved`)?
+- Is the task STILL not in "Done" state despite approval?
+
+If all three are true, you are in a redispatch loop. **Do NOT dispatch the same
+task again.** Instead:
+
+1. Try `twig state Done` one more time (the auth/config issue may have resolved)
+2. If it fails again, **report the failure explicitly** in your `progress_summary`:
+   "BLOCKED: Task #<id> approved by reviewer but twig state Done fails: <error>"
+3. Set `action=pr_group_ready` to break the loop — let the PR reviewer catch
+   any remaining issues at the PR level
+4. Add the task to `completed_tasks` anyway (it's code-complete even if ADO state
+   is stale)
+
+This prevents burning the entire workflow budget on a single stuck state transition.
+
 ## Decision Logic
 
 1. If the current issue has Tasks NOT in state "Done" → pick the next undone

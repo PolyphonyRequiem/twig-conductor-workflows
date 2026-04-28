@@ -1,7 +1,6 @@
 Review issue #{{ task_manager.output.current_issue_id }} — {{ task_manager.output.current_issue_title }}.
 **Work Item:** #{{ intake.output.work_item_id }}
 **Completed Tasks:** {{ task_manager.output.completed_tasks | json }}
-**Reducer findings:** {{ reducer_issue.output.findings | join(", ") }}
 
 ## Scoring Rubric (P11 — Code Review, issue-level)
 

@@ -47,6 +47,7 @@ Note what was done well — strengths reinforce good patterns.
   "feedback": "...",
   "issues": [],
   "approved": true,
-  "strengths": ["..."]
+  "strengths": ["..."],
+  "review_attempt": 1
 }
 ```

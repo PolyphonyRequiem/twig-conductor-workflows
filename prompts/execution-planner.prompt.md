@@ -1,16 +1,17 @@
 Define PR groups for the approved plan.
 
-**Work Item:** #{{ intake.output.work_item_id }} — {{ intake.output.title }}
-**Plan:** {{ architect.output.plan_path }}
+{% set _plan_path = architect.output.plan_path if (architect is defined and architect.output is defined and architect.output.plan_path is defined) else (plan_check.output.plan_path if (plan_check is defined and plan_check.output is defined and plan_check.output.plan_path is defined) else '') %}
+**Work Item:** #{{ workflow.input.work_item_id }} — {{ workflow.input.title if workflow.input.title is defined else '' }}
+**Plan:** {{ _plan_path }}
 
-{% if execution_planner is defined and execution_planner.output.needs_revision %}
+{% if execution_planner is defined and execution_planner.output is defined and execution_planner.output.needs_revision %}
 **Previous attempt failed** — architect has revised the plan. Re-evaluate PG grouping.
 {% endif %}
 
 ## Steps
 
 ### 1. Read the approved plan
-Read `{{ architect.output.plan_path }}` and understand:
+Read `{{ _plan_path }}` and understand:
 - What Issues/deliverables are defined
 - What Tasks exist under each Issue
 - Dependencies between components
@@ -31,7 +32,7 @@ For each PG, verify:
 - If not self-contained, set `needs_revision: true`
 
 ### 4. Append Execution Plan to plan document
-Append a `## Execution Plan` section to `{{ architect.output.plan_path }}` with:
+Append a `## Execution Plan` section to `{{ _plan_path }}` with:
 - PR group table: | Group | Name | Issues/Tasks | Dependencies | Type (deep/wide) |
 - Execution order narrative
 - Validation strategy per PG

@@ -19,6 +19,11 @@
 param([Parameter(Mandatory)][int]$WorkItemId)
 
 $ErrorActionPreference = 'Stop'
+$env:GH_PROMPT_DISABLED = "1"
+# Derive --repo slug for all gh CLI calls (prevents repo-selection prompts)
+$_ghRepo = ''
+$_remoteUrl = (git remote get-url origin 2>$null) ?? ''
+if ($_remoteUrl -match 'github\.com[/:]([^/]+/[^/.]+)') { $_ghRepo = $Matches[1] }
 
 try {
     # ── Sync local cache ──────────────────────────────────────────────
@@ -77,6 +82,9 @@ try {
     }
 
     $prGroups = @()
+    # Include work item ID in branch names to prevent cross-epic collisions.
+    # Without this, "feature/pg-1" from a prior epic's merged PR would falsely
+    # mark the current epic's PG-1 as complete.
     if ($pgMap.Count -gt 0) {
         foreach ($pgName in ($pgMap.Keys | Sort-Object { [int]($_ -replace '^PG-(\d+).*', '$1') })) {
             $pg = $pgMap[$pgName]
@@ -85,7 +93,7 @@ try {
                 name = $pgName
                 task_ids = @($pg.task_ids)
                 issue_ids = @($pg.issue_ids)
-                branch_name = "feature/$slug"
+                branch_name = "feature/$WorkItemId-$slug"
             }
         }
     }
@@ -97,7 +105,7 @@ try {
             name = 'PG-1'
             task_ids = @($allTasks | ForEach-Object { $_.id })
             issue_ids = @($issues | ForEach-Object { $_.id })
-            branch_name = "feature/pg-1-$slug"
+            branch_name = "feature/$WorkItemId-pg-1-$slug"
         }
     }
 
@@ -105,11 +113,11 @@ try {
     $remoteBranches = @(git branch -r 2>$null | ForEach-Object { $_.Trim() -replace '^origin/', '' })
 
     $mergedPRs = @()
-    $mpJson = gh pr list --state merged --limit 100 --json number,headRefName 2>$null
+    $mpJson = gh pr list --repo $_ghRepo --state merged --limit 100 --json number,headRefName 2>$null
     if ($mpJson) { $mergedPRs = $mpJson | ConvertFrom-Json }
 
     $openPRs = @()
-    $opJson = gh pr list --state open --limit 50 --json number,headRefName,url 2>$null
+    $opJson = gh pr list --repo $_ghRepo --state open --limit 50 --json number,headRefName,url 2>$null
     if ($opJson) { $openPRs = $opJson | ConvertFrom-Json }
 
     # ── Determine each PG's state and pick target ─────────────────────
@@ -118,6 +126,31 @@ try {
 
     foreach ($pg in $prGroups) {
         $hasMergedPR = ($mergedPRs | Where-Object { $_.headRefName -eq $pg.branch_name }).Count -gt 0
+
+        # Defense-in-depth: even if a merged PR matches the branch name, verify
+        # that at least one of the PG's issues has progressed beyond To Do. This
+        # catches stale/orphaned branch name collisions from prior runs.
+        if ($hasMergedPR) {
+            $pgIssueStates = @($issues | Where-Object { $_.id -in $pg.issue_ids } | ForEach-Object { $_.state })
+            $allIssuesToDo = ($pgIssueStates | Where-Object { $_ -eq 'To Do' }).Count -eq $pgIssueStates.Count -and $pgIssueStates.Count -gt 0
+            if ($allIssuesToDo) {
+                # Merged PR doesn't match this PG's actual work — treat as incomplete
+                $hasMergedPR = $false
+            }
+        }
+
+        # Backwards compatibility: if no merged PR matches the epic-scoped branch
+        # name but ALL of the PG's issues are Done, the PG was completed under a
+        # prior naming convention (e.g., "feature/pg-1" instead of "feature/2114-pg-1").
+        # Trust the ADO issue state as the source of truth.
+        if (-not $hasMergedPR) {
+            $pgIssueStates = @($issues | Where-Object { $_.id -in $pg.issue_ids } | ForEach-Object { $_.state })
+            $allIssuesDone = $pgIssueStates.Count -gt 0 -and ($pgIssueStates | Where-Object { $_ -ne 'Done' }).Count -eq 0
+            if ($allIssuesDone) {
+                $hasMergedPR = $true
+            }
+        }
+
         if ($hasMergedPR) {
             $completedPGs += $pg.name
             continue

@@ -1,5 +1,5 @@
 Review the task decomposition for Issue #{{ workflow.input.work_item_id }} — {{ workflow.input.title }}.
-**Plan:** Read `{{ workflow.input.plan_path }}` for this issue's scope.
+**Plan:** Read `{{ workflow.input.plan_path | default('(no plan path available — review tasks directly)') }}` for this issue's scope.
 
 Check the ADO work items:
 ```

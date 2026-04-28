@@ -142,6 +142,17 @@ elseif ($doneCount -gt 0 -or $doingCount -gt 0) {
     $implementationStatus = 'in_progress'
 }
 
+# ── Step 4b: Enforce Epic → Doing transition ─────────────────────────────────
+# If the epic is still in "To Do" and has children (i.e., work exists),
+# transition it to "Doing" before routing to implementation. This prevents
+# epics from staying in "To Do" through an entire SDLC run.
+
+if ($workItemType -eq 'Epic' -and $workItemState -eq 'To Do' -and $hasSeededChildren) {
+    twig set $WorkItemId --output json 2>$null | Out-Null
+    twig state Doing --output json 2>$null | Out-Null
+    $workItemState = 'Doing'
+}
+
 # ── Step 5: Intent validation and phase determination ────────────────────────
 
 $errorMsg = ''

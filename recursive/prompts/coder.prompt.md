@@ -57,8 +57,11 @@ Add a twig note: `twig note --text "Tests: <count> passed"`
 **Shell watchdog.** If a test/build shell produces zero output after ~3 consecutive
 `read_powershell` polls (~6 minutes), `stop_powershell` and narrow scope or retry.
 
-### Step 5 — Commit
-`git add -A && git commit -m "<descriptive message>"`
+### Step 5 — Commit & Push
+`git add -A && git commit -m "<descriptive message>" && git push`
+
+Push after every commit for crash recovery — if the workflow restarts, committed
+work is safe on the remote. The branch was already pushed by pr_group_manager.
 
 Do NOT implement anything beyond this single task.
 

@@ -29,6 +29,12 @@ STRUCTURAL RULES (these are NOT guidelines — they are hard constraints):
 10. ALL code MUST reach main via a GitHub PR — direct commits or pushes to main are
     NEVER permitted. Every PR group produces exactly one GitHub PR. No exceptions.
 
+**Resume reconciliation exception:** During **first-invocation resume reconciliation
+only** (processing `pgs_needing_reconciliation`), you may transition "Doing" Tasks
+to Done for PGs whose PRs are already verified as merged. This is a crash-recovery
+action for interrupted state transitions — NOT a blanket close of all tasks.
+"To Do" tasks are never closed during reconciliation.
+
 twig CLI rules:
 - Always append --output json
 - twig set <id>, twig state Doing, twig state Done

@@ -40,12 +40,14 @@ If a PR exists, return its info (number, url, title) without creating a duplicat
    - Use `git diff --name-only main` to determine which source directories were touched
    - **Do NOT run the full test suite** — the CI/CD pipeline handles comprehensive testing on the PR
 3. Push the branch: `git push -u origin {{ pg_router.output.branch_name }}`
-4. Create the PR:
-   ```
-   gh pr create --base main --head {{ pg_router.output.branch_name }} \
-     --title "[{{ pg_router.output.current_pg }}] <PR group title>" \
-     --body "<description with AB# references>"
-   ```
+4. Create the PR using the `create_pull_request` MCP tool:
+   - owner: `PolyphonyRequiem`
+   - repo: `twig`
+   - base: `main`
+   - head: `{{ pg_router.output.branch_name }}`
+   - title: `[{{ pg_router.output.current_pg }}] <PR group title>`
+   - body: description with AB# references (see step 5 for body content)
+   - **Do NOT use `gh pr create` CLI** — always use the MCP tool.
    - The PR title MUST be prefixed with `[PG-N]` matching the current PR group identifier
 5. The PR body should include:
    - Summary of changes

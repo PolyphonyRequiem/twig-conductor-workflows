@@ -1,9 +1,6 @@
 Review issue #{{ workflow.input.issue_id }} — {{ workflow.input.issue_title }}.
 **Plan:** Read `{{ workflow.input.plan_path }}` for this issue's acceptance criteria.
 **Completed Tasks:** {{ workflow.input.completed_tasks }}
-{% if reducer_issue is defined %}
-**Reducer findings:** {{ reducer_issue.output.findings | join(", ") }}
-{% endif %}
 
 ## Review Tasks
 

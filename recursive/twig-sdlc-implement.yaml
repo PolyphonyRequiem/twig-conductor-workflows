@@ -155,28 +155,6 @@ agents:
       - "{{ workflow.dir }}/scripts/pg-router.ps1"
       - "-WorkItemId"
       - "{{ intake.output.work_item_id }}"
-    output:
-      action:
-        type: string
-        description: "create_branch, route_tasks, submit_pr, or all_complete"
-      current_pg:
-        type: string
-      branch_name:
-        type: string
-      issue_ids:
-        type: array
-      task_ids:
-        type: array
-      pr_number:
-        type: number
-      pr_url:
-        type: string
-      completed_pgs:
-        type: array
-      remaining_pgs:
-        type: array
-      total_pgs:
-        type: number
     routes:
       - to: branch_manager
         when: "{{ output.action == 'create_branch' }}"
@@ -200,11 +178,6 @@ agents:
       - "{{ workflow.dir }}/scripts/branch-manager.ps1"
       - "-BranchName"
       - "{{ pg_router.output.branch_name }}"
-    output:
-      branch_name:
-        type: string
-      created:
-        type: boolean
     routes:
       - to: task_router
 
@@ -225,24 +198,6 @@ agents:
       - "{{ intake.output.work_item_id }}"
       - "-PGName"
       - "{{ pg_router.output.current_pg }}"
-    output:
-      action:
-        type: string
-        description: "implement_task or all_tasks_done"
-      task_id:
-        type: number
-      task_title:
-        type: string
-      issue_id:
-        type: number
-      issue_title:
-        type: string
-      remaining_count:
-        type: number
-      current_pg:
-        type: string
-      branch_name:
-        type: string
     routes:
       - to: coder
         when: "{{ output.action == 'implement_task' }}"
@@ -353,7 +308,7 @@ agents:
   - name: pr_merge
     description: Merges approved PR and cleans up branch
     model: claude-sonnet-4.6
-    tools: []
+    tools: ["merge_pull_request"]
     input:
       - pr_submit.output
       - pg_router.output
@@ -394,11 +349,6 @@ agents:
       - "{{ pg_router.output.current_pg }}"
       - "-PRNumber"
       - "{{ pr_merge.output.pr_number }}"
-    output:
-      closed_issues:
-        type: array
-      failed_closures:
-        type: array
     routes:
       - to: pg_router
 
@@ -406,7 +356,7 @@ agents:
   - name: pr_finalizer
     description: Verifies all PR groups merged before close-out
     model: claude-sonnet-4.6
-    tools: ["twig_set", "twig_show", "twig_tree", "twig_workspace"]
+    tools: ["twig_set", "twig_show", "twig_tree", "twig_workspace", "list_pull_requests", "search_pull_requests"]
     input:
       - work_tree_loader.output
       - pg_router.output

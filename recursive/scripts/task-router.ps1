@@ -75,12 +75,37 @@ try {
         }
     }
 
+    # Final fallback: if no PG-tagged tasks or issues, include all tasks
+    # (mirrors pg_router's single-PG fallback when no PG tags exist)
+    if ($pgTasks.Count -eq 0) {
+        foreach ($child in $children) {
+            $issueTasks = $child.children
+            if (-not $issueTasks -or $issueTasks.Count -eq 0) {
+                twig set $child.id --output json *>$null
+                $issueTasks = ((twig tree --depth 1 --output json 2>$null) | ConvertFrom-Json).children
+            }
+            if ($issueTasks) {
+                foreach ($t in $issueTasks) {
+                    $pgTasks += $t
+                    $pgIssueMap[$t.id] = @{ id = $child.id; title = $child.title }
+                }
+            }
+        }
+    }
+
     # Restore focus to Epic
     twig set $WorkItemId --output json *>$null
 
     # ── Derive branch name ────────────────────────────────────────────
+    # Use pg_router's output if available (passed via conductor context),
+    # otherwise check current git branch, then fall back to slug derivation
     $branchSlug = ($PGName -replace '[^a-zA-Z0-9]+', '-').ToLower()
-    $branchName = "feature/$branchSlug"
+    $currentBranch = (git branch --show-current 2>$null)
+    if ($currentBranch -and $currentBranch -like "feature/$branchSlug*") {
+        $branchName = $currentBranch
+    } else {
+        $branchName = "feature/$branchSlug"
+    }
 
     # ── Find next undone task ─────────────────────────────────────────
     $pendingTasks = @($pgTasks | Where-Object { $_.state -ne 'Done' })

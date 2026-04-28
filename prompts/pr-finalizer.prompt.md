@@ -26,11 +26,11 @@ Cross-reference any unmerged branches against PG branch names (format: `feature/
 If a branch matches a PG that should be complete, that group's work is orphaned.
 
 ### 3. Verify merged PRs via GitHub
-```
-gh pr list --state merged --limit 50 --json number,headRefName,mergedAt
-```
-Cross-reference each PG's branch name against merged PRs. Every PG must have
-a corresponding merged PR.
+Use the `list_pull_requests` MCP tool to check merged PRs:
+- owner: `PolyphonyRequiem`, repo: `twig`, state: `closed`
+- Cross-reference each PG's branch name against merged PRs. Every PG must have
+  a corresponding merged PR.
+- **Do NOT use `gh pr list` CLI** — always use the MCP tool.
 
 ### 4. Verify Issue states match reality
 For each Issue in the work tree:

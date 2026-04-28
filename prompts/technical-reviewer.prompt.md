@@ -1,5 +1,5 @@
 Review the implementation plan at `{{ architect.output.plan_path }}`.
-**Context:** Implementing #{{ intake.output.work_item_id }} — {{ intake.output.title }}
+**Context:** Implementing #{{ workflow.input.work_item_id }} — {{ workflow.input.title if workflow.input.title is defined else '' }}
 
 ## Fact-Checking
 

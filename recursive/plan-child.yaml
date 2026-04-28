@@ -32,6 +32,10 @@ workflow:
       type: number
       required: false
       default: 0
+    description:
+      type: string
+      required: false
+      default: ""
     plan_path:
       type: string
       required: false
@@ -83,6 +87,7 @@ agents:
       - workflow.input.work_item_id
       - workflow.input.title
       - workflow.input.type?
+      - workflow.input.description?
       - workflow.input.plan_path?
       - workflow.input.intent?
       - task_check.output
@@ -110,6 +115,7 @@ agents:
       - child_architect.output
       - workflow.input.work_item_id
       - workflow.input.title
+      - workflow.input.plan_path?
     system_prompt: |
       You review child-level task decomposition plans.
       Check completeness, granularity, descriptions, and test coverage.

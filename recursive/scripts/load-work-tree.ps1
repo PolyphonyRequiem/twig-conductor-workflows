@@ -19,6 +19,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:GH_PROMPT_DISABLED = "1"
+# Derive --repo slug for all gh CLI calls (prevents repo-selection prompts)
+$_ghRepo = ''
+$_remoteUrl = (git remote get-url origin 2>$null) ?? ''
+if ($_remoteUrl -match 'github\.com[/:]([^/]+/[^/.]+)') { $_ghRepo = $Matches[1] }
 
 try {
 # ── Step 0: Sync local cache from ADO ────────────────────────────────────────
@@ -192,7 +197,7 @@ else {
 
 # Check for merged PRs on branches matching PG names
 $mergedPRs = @()
-$prListJson = gh pr list --state merged --limit 50 --json number,headRefName,mergedAt 2>$null
+$prListJson = gh pr list --repo $_ghRepo --state merged --limit 50 --json number,headRefName,mergedAt 2>$null
 if ($prListJson) {
     $mergedPRs = $prListJson | ConvertFrom-Json
 }

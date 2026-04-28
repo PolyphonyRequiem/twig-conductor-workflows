@@ -14,10 +14,10 @@ twig set {{ close_out.output.work_item_id | default(state_detector.output.work_i
 twig tree --output json
 ```
 
-Check merged PRs:
-```
-gh pr list --state merged --search "{{ close_out.output.work_item_id | default(state_detector.output.work_item_id) }}" --json number,title,mergedAt,additions,deletions
-```
+Check merged PRs using the `list_pull_requests` MCP tool:
+- owner: `PolyphonyRequiem`, repo: `twig`, state: `closed`
+- Filter for PRs related to work item {{ close_out.output.work_item_id | default(state_detector.output.work_item_id) }}
+- **Do NOT use `gh pr list` CLI** — the `gh` CLI hangs in non-TTY environments.
 
 Check git log for this run:
 ```

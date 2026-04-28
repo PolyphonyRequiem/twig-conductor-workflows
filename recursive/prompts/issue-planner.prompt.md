@@ -1,7 +1,7 @@
 Break Issue #{{ workflow.input.work_item_id }} into Tasks.
 
 **Issue Title:** {{ workflow.input.title }}
-**Issue Description:** {{ workflow.input.description }}
+**Issue Description:** {{ workflow.input.description | default('(Read the work item description via twig)') }}
 {% if workflow.input.plan_path %}
 **Epic-level plan:** Read the plan at `{{ workflow.input.plan_path }}` for full context.
 This Issue is part of a larger Epic. The plan describes what this Issue should achieve
