@@ -23,6 +23,9 @@ $ErrorActionPreference = 'Stop'
 # Resolve GH_TOKEN (bypasses credential helper deadlock in non-TTY)
 . "$PSScriptRoot/resolve-gh-token.ps1"
 
+# Timeout-safe gh CLI wrapper (prevents hangs on gh pr list etc.)
+. "$PSScriptRoot/invoke-gh.ps1"
+
 # Derive --repo slug for all gh CLI calls (prevents repo-selection prompts)
 $_ghRepo = ''
 $_remoteUrl = (git remote get-url origin 2>$null) ?? ''
@@ -116,11 +119,11 @@ try {
     $remoteBranches = @(git branch -r 2>$null | ForEach-Object { $_.Trim() -replace '^origin/', '' })
 
     $mergedPRs = @()
-    $mpJson = gh pr list --repo $_ghRepo --state merged --limit 100 --json number,headRefName 2>$null
+    $mpJson = _InvokeGh @('pr', 'list', '--repo', $_ghRepo, '--state', 'merged', '--limit', '100', '--json', 'number,headRefName')
     if ($mpJson) { $mergedPRs = $mpJson | ConvertFrom-Json }
 
     $openPRs = @()
-    $opJson = gh pr list --repo $_ghRepo --state open --limit 50 --json number,headRefName,url 2>$null
+    $opJson = _InvokeGh @('pr', 'list', '--repo', $_ghRepo, '--state', 'open', '--limit', '50', '--json', 'number,headRefName,url')
     if ($opJson) { $openPRs = $opJson | ConvertFrom-Json }
 
     # ── Determine each PG's state and pick target ─────────────────────

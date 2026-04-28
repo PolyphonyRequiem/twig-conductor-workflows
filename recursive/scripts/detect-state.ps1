@@ -140,13 +140,14 @@ $implementationStatus = 'not_started'
 $hasUnmergedBranches = $false
 if ($doneCount -eq $childCount -and $childCount -gt 0) {
     . "$PSScriptRoot/resolve-gh-token.ps1"
+    . "$PSScriptRoot/invoke-gh.ps1"
     $remoteBranches = @(git ls-remote --heads origin 2>$null |
         ForEach-Object { ($_ -split '\t')[1] -replace '^refs/heads/', '' } |
         Where-Object { $_ -like "feature/$WorkItemId-*" })
     if ($remoteBranches.Count -gt 0) {
         # Feature branches still exist — check if they have unmerged PRs
-        $mergedPRs = @(gh pr list --repo PolyphonyRequiem/twig --state merged --limit 100 --json headRefName 2>$null |
-            ConvertFrom-Json | ForEach-Object { $_.headRefName })
+        $mergedPRJson = _InvokeGh @('pr', 'list', '--repo', 'PolyphonyRequiem/twig', '--state', 'merged', '--limit', '100', '--json', 'headRefName')
+        $mergedPRs = @(if ($mergedPRJson) { $mergedPRJson | ConvertFrom-Json | ForEach-Object { $_.headRefName } })
         $unmerged = @($remoteBranches | Where-Object { $_ -notin $mergedPRs })
         if ($unmerged.Count -gt 0) {
             $hasUnmergedBranches = $true

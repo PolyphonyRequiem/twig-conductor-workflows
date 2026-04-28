@@ -23,6 +23,9 @@ $ErrorActionPreference = 'Stop'
 # Resolve GH_TOKEN (bypasses credential helper deadlock in non-TTY)
 . "$PSScriptRoot/resolve-gh-token.ps1"
 
+# Timeout-safe gh CLI wrapper (prevents hangs on gh pr list etc.)
+. "$PSScriptRoot/invoke-gh.ps1"
+
 # Derive --repo slug for all gh CLI calls (prevents repo-selection prompts)
 $_ghRepo = ''
 $_remoteUrl = (git remote get-url origin 2>$null) ?? ''
@@ -200,7 +203,7 @@ else {
 
 # Check for merged PRs on branches matching PG names
 $mergedPRs = @()
-$prListJson = gh pr list --repo $_ghRepo --state merged --limit 50 --json number,headRefName,mergedAt 2>$null
+$prListJson = _InvokeGh @('pr', 'list', '--repo', $_ghRepo, '--state', 'merged', '--limit', '50', '--json', 'number,headRefName,mergedAt')
 if ($prListJson) {
     $mergedPRs = $prListJson | ConvertFrom-Json
 }
