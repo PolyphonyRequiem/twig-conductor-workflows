@@ -23,7 +23,7 @@ $env:GH_PROMPT_DISABLED = "1"
 # Derive --repo slug for all gh CLI calls (prevents repo-selection prompts)
 $_ghRepo = ''
 $_remoteUrl = (git remote get-url origin 2>$null) ?? ''
-if ($_remoteUrl -match 'github\.com[/:]([^/]+/[^/.]+)') { $_ghRepo = $Matches[1] }
+if ($_remoteUrl -match 'github\.com(?:/|:)([^/]+/[^/.]+)') { $_ghRepo = $Matches[1] }
 
 try {
 # ── Step 0: Sync local cache from ADO ────────────────────────────────────────

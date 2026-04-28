@@ -169,7 +169,7 @@ agents:
       - |
         git checkout main *>$null
         git pull --ff-only *>$null 2>&1
-        [ordered]@{ branch = (git branch --show-current 2>$null); ready = $true } | ConvertTo-Json
+        @{ branch = (git branch --show-current 2>$null); ready = $true } | ConvertTo-Json -Compress
     routes:
       - to: implementation
 
