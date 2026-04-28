@@ -168,7 +168,7 @@ agents:
   # ── BRANCH MANAGER (deterministic) ─────────────────────────────────
   - name: branch_manager
     type: script
-    description: Creates feature branch for a PR group from latest main
+    description: Creates or rebases feature branch for a PR group (stacked PR support)
     input:
       - pg_router.output
     command: pwsh

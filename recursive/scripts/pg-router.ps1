@@ -173,7 +173,9 @@ try {
                 $pg['pg_state'] = 'submit_pr'
             }
             elseif ($branchExists) {
-                $pg['pg_state'] = 'route_tasks'
+                # Branch exists — route through branch_manager to rebase onto
+                # updated main (stacked PR pattern: PG-1 merged → rebase PG-2)
+                $pg['pg_state'] = 'create_branch'
             }
             else {
                 $pg['pg_state'] = 'create_branch'
