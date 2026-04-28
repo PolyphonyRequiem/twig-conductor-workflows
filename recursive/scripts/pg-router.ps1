@@ -164,12 +164,16 @@ try {
             $openPR = $openPRs | Where-Object { $_.headRefName -eq $pg.branch_name } | Select-Object -First 1
             $allTasksDone = -not ($allTasks | Where-Object { $_.id -in $pg.task_ids -and $_.state -ne 'Done' })
 
+            # Taskless PG: check if PG-tagged issues are all Done
+            $pgIssuesDone = $pg.issue_ids.Count -gt 0 -and
+                ($issues | Where-Object { $_.id -in $pg.issue_ids -and $_.state -ne 'Done' }).Count -eq 0
+
             if ($openPR) {
                 $pg['pg_state'] = 'submit_pr'
                 $pg['pr_number'] = $openPR.number
                 $pg['pr_url'] = $openPR.url
             }
-            elseif ($allTasksDone -and $pg.task_ids.Count -gt 0) {
+            elseif ($allTasksDone -and ($pg.task_ids.Count -gt 0 -or $pgIssuesDone)) {
                 $pg['pg_state'] = 'submit_pr'
             }
             elseif ($branchExists) {

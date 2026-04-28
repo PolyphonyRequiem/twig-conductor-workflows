@@ -93,6 +93,21 @@ try {
         }
     }
 
+    # Issue-as-task: when a PG has tagged issues but no child tasks at all,
+    # treat the undone issues themselves as work items for the coder.
+    # This prevents an infinite loop where task_router says "all_tasks_done"
+    # but pg_router sees the PG as incomplete (issue not Done).
+    if ($pgTasks.Count -eq 0) {
+        foreach ($child in $children) {
+            if (-not $child.tags) { continue }
+            $tags = ($child.tags -split ';\s*') | ForEach-Object { $_.Trim() }
+            if ($PGName -in $tags) {
+                $pgTasks += $child
+                $pgIssueMap[$child.id] = @{ id = $child.id; title = $child.title }
+            }
+        }
+    }
+
     # Restore focus to Epic
     twig set $WorkItemId --output json *>$null
 
