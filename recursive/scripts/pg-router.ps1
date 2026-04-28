@@ -146,7 +146,7 @@ try {
         # name but ALL of the PG's issues are Done, the PG was completed under a
         # prior naming convention (e.g., "feature/pg-1" instead of "feature/2114-pg-1").
         # Trust the ADO issue state as the source of truth.
-        if (-not $hasMergedPR) {
+        if (-not $hasMergedPR -and ($pg.branch_name -notin $remoteBranches)) {
             $pgIssueStates = @($issues | Where-Object { $_.id -in $pg.issue_ids } | ForEach-Object { $_.state })
             $allIssuesDone = $pgIssueStates.Count -gt 0 -and ($pgIssueStates | Where-Object { $_ -ne 'Done' }).Count -eq 0
             if ($allIssuesDone) {
