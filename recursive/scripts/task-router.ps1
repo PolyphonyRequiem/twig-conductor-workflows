@@ -75,8 +75,24 @@ try {
         }
     }
 
-    # Final fallback: if no PG-tagged tasks or issues, include all tasks
-    # (mirrors pg_router's single-PG fallback when no PG tags exist)
+    # Issue-as-task: when a PG has tagged issues but no child tasks,
+    # treat the undone issues themselves as work items for the coder.
+    # This MUST run before the final fallback (which pulls all tasks from
+    # all issues and would mask the missing-tasks case with Done tasks
+    # from other PGs).
+    if ($pgTasks.Count -eq 0) {
+        foreach ($child in $children) {
+            if (-not $child.tags) { continue }
+            $tags = ($child.tags -split ';\s*') | ForEach-Object { $_.Trim() }
+            if ($PGName -in $tags) {
+                $pgTasks += $child
+                $pgIssueMap[$child.id] = @{ id = $child.id; title = $child.title }
+            }
+        }
+    }
+
+    # Final fallback: if no PG-tagged tasks, issues, or issue-as-task matches,
+    # include all tasks (mirrors pg_router's single-PG fallback when no PG tags exist)
     if ($pgTasks.Count -eq 0) {
         foreach ($child in $children) {
             $issueTasks = $child.children
@@ -89,21 +105,6 @@ try {
                     $pgTasks += $t
                     $pgIssueMap[$t.id] = @{ id = $child.id; title = $child.title }
                 }
-            }
-        }
-    }
-
-    # Issue-as-task: when a PG has tagged issues but no child tasks at all,
-    # treat the undone issues themselves as work items for the coder.
-    # This prevents an infinite loop where task_router says "all_tasks_done"
-    # but pg_router sees the PG as incomplete (issue not Done).
-    if ($pgTasks.Count -eq 0) {
-        foreach ($child in $children) {
-            if (-not $child.tags) { continue }
-            $tags = ($child.tags -split ';\s*') | ForEach-Object { $_.Trim() }
-            if ($PGName -in $tags) {
-                $pgTasks += $child
-                $pgIssueMap[$child.id] = @{ id = $child.id; title = $child.title }
             }
         }
     }
