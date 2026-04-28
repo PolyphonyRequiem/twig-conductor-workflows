@@ -122,9 +122,20 @@ agents:
     input:
       - architect.output
     prompt: |
-      ## Open Questions Requiring Your Input
-      **Plan Document:** {{ architect.output.plan_path }}
+      ## ❓ Open Questions Requiring Your Input
+
+      📄 [View Plan]({{ architect.output.plan_path }})
+      🔗 [ADO Work Item](https://dev.azure.com/dangreen-msft/Twig/_workitems/edit/{{ workflow.input.work_item_id }})
+
+      The architect has **blocking questions** that need your input before the plan can proceed.
+
+      ---
+
       {{ architect.output.open_questions_summary }}
+
+      ---
+
+      > **Tip:** Choose *Provide Input & Revise* to answer the questions and send the architect back for another pass.
     options:
       - label: "Proceed Without Answering"
         value: proceed
@@ -227,10 +238,25 @@ agents:
       - review_router.output
       - architect.output
     prompt: |
-      The plan has been revised {{ review_router.output.revision_count }} times
-      but still has {{ review_router.output.blocking_issue_count }} blocking issues.
-      **Tech:** {{ review_router.output.tech_score }}/100 | **Read:** {{ review_router.output.read_score }}/100
+      ## ⚠️ Revision Cap Reached
+
+      📄 [View Plan]({{ architect.output.plan_path }})
+      🔗 [ADO Work Item](https://dev.azure.com/dangreen-msft/Twig/_workitems/edit/{{ workflow.input.work_item_id }})
+
+      The plan has been revised **{{ review_router.output.revision_count }} times** but still has **{{ review_router.output.blocking_issue_count }} blocking issues**.
+
+      | Dimension | Score |
+      |-----------|-------|
+      | Technical | {{ review_router.output.tech_score }}/100 |
+      | Readability | {{ review_router.output.read_score }}/100 |
+
+      ### Reviewer Feedback
+
       {{ review_router.output.combined_feedback }}
+
+      ---
+
+      > You can force-approve with justification, request one more revision with guidance, or abort.
     options:
       - label: "Force approve and proceed (provide justification)"
         value: force_approve
@@ -252,11 +278,29 @@ agents:
       - architect.output
       - review_router.output
     prompt: |
-      The implementation plan is ready for review.
-      **Plan:** {{ architect.output.plan_path }}
-      **Summary:** {{ architect.output.plan_summary }}
-      **Issues:** {{ architect.output.issue_count }} | **PGs:** {{ architect.output.pr_group_count }} | **Est. LoC:** {{ architect.output.total_estimated_loc }}
-      **Tech:** {{ review_router.output.tech_score }}/100 | **Read:** {{ review_router.output.read_score }}/100
+      ## ✅ Plan Ready for Approval
+
+      📄 [View Plan]({{ architect.output.plan_path }})
+      🔗 [ADO Work Item](https://dev.azure.com/dangreen-msft/Twig/_workitems/edit/{{ workflow.input.work_item_id }})
+
+      ### Summary
+
+      {{ architect.output.plan_summary }}
+
+      ### Scope
+
+      | Metric | Value |
+      |--------|-------|
+      | Issues | {{ architect.output.issue_count }} |
+      | PR Groups | {{ architect.output.pr_group_count }} |
+      | Est. LoC | {{ architect.output.total_estimated_loc }} |
+
+      ### Review Scores
+
+      | Dimension | Score |
+      |-----------|-------|
+      | Technical | {{ review_router.output.tech_score }}/100 |
+      | Readability | {{ review_router.output.read_score }}/100 |
     options:
       - label: "Approve — proceed to execution planning"
         value: approved
