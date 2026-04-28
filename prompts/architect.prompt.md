@@ -3,7 +3,7 @@ Create a solution design and implementation plan.
 **Type:** {{ workflow.input.item_type if workflow.input.item_type is defined else '' }}
 **Description:** {{ workflow.input.description if workflow.input.description is defined else '' }}
 {% set wi_issues = workflow.input.existing_issues if workflow.input.existing_issues is defined else [] %}
-{% if wi_issues is iterable and wi_issues | length > 0 %}
+{% if wi_issues is iterable and wi_issues is not string and wi_issues | length > 0 %}
 **Existing child Issues (reuse these — do NOT create duplicates):**
 {% for issue in wi_issues %}
 - #{{ issue.id }}: {{ issue.title }}{% if issue.description is defined and issue.description %} — {{ issue.description }}{% endif %}

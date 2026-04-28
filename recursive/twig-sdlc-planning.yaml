@@ -109,7 +109,7 @@ agents:
       title: "{{ intake.output.title }}"
       description: "{{ intake.output.description }}"
       item_type: "{{ intake.output.item_type }}"
-      existing_issues: "{{ intake.output.existing_issues }}"
+      existing_issues: "{{ intake.output.existing_issues | json }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
       prompt: "{{ workflow.input.prompt if workflow.input.prompt else '' }}"
     output:
