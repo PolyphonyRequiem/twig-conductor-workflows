@@ -8,11 +8,13 @@
     Stdin/stdout are transparently proxied to the container.
 #>
 $ErrorActionPreference = 'Stop'
-$env:GH_PROMPT_DISABLED = "1"
 
-$token = gh auth token 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to get GitHub token from gh CLI. Run 'gh auth login' first."
+# Resolve GH_TOKEN (bypasses credential helper deadlock in non-TTY)
+. "$PSScriptRoot/resolve-gh-token.ps1"
+
+$token = $env:GH_TOKEN
+if (-not $token) {
+    Write-Error "Failed to resolve GitHub token. Set GH_TOKEN, GH_CONDUCTOR_USER, or run 'gh auth login' first."
     exit 1
 }
 

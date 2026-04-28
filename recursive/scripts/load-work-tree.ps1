@@ -19,7 +19,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$env:GH_PROMPT_DISABLED = "1"
+
+# Resolve GH_TOKEN (bypasses credential helper deadlock in non-TTY)
+. "$PSScriptRoot/resolve-gh-token.ps1"
+
 # Derive --repo slug for all gh CLI calls (prevents repo-selection prompts)
 $_ghRepo = ''
 $_remoteUrl = (git remote get-url origin 2>$null) ?? ''

@@ -9,6 +9,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Resolve GH_TOKEN (bypasses credential helper deadlock in non-TTY)
+. "$PSScriptRoot/resolve-gh-token.ps1"
+
 # Derive repo slug from git remote
 $remoteUrl = (git remote get-url origin 2>$null) ?? ''
 $repo = if ($remoteUrl -match 'github\.com(?:/|:)([^/]+/[^/.]+)') { $Matches[1] } else { '' }
@@ -17,11 +20,10 @@ if (-not $repo) {
     exit 0
 }
 
-# Get token from gh CLI (reads local config, no network call)
-$env:GH_PROMPT_DISABLED = "1"
-$token = (gh auth token 2>$null) ?? ''
+# Use resolved token for REST API calls
+$token = $env:GH_TOKEN ?? ''
 if (-not $token) {
-    [ordered]@{ pr_number = 0; pr_url = ""; error = "Could not get GitHub token from gh auth token" } | ConvertTo-Json
+    [ordered]@{ pr_number = 0; pr_url = ""; error = "Could not resolve GitHub token (set GH_TOKEN or run gh auth login)" } | ConvertTo-Json
     exit 0
 }
 
