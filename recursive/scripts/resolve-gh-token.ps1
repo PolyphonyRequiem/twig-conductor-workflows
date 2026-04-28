@@ -10,44 +10,54 @@
       3. Derive the repo owner from git remote origin and try --user <owner>.
       4. Fall back to plain gh auth token (active account).
 
+    Each gh call uses a 10-second timeout with up to 10 retries and exponential
+    backoff (1s, 2s, 4s, 8s, 10s cap). This handles transient credential helper
+    deadlocks without failing permanently.
+
     Dot-source this file at the top of any script that calls gh CLI:
         . "$PSScriptRoot/resolve-gh-token.ps1"
-
-.NOTES
-    gh auth token *should* only read the local keyring, but it can still hang
-    in non-TTY subprocess chains (credential helper deadlocks, GCM popups).
-    All calls are wrapped with a 10-second timeout to prevent indefinite hangs.
 #>
 
 if ($env:GH_TOKEN) { return }
 
 $env:GH_PROMPT_DISABLED = "1"
 
-# Helper: run gh auth token with a timeout to prevent indefinite hangs.
-# Returns the token string or $null if the call hangs or fails.
+# Helper: run gh auth token with timeout + retry/backoff.
+# Returns the token string or $null after all retries exhausted.
 function _InvokeGhAuthToken {
     param([string[]]$GhArgs)
-    try {
-        $psi = [System.Diagnostics.ProcessStartInfo]::new()
-        $psi.FileName = 'gh'
-        foreach ($a in @('auth', 'token') + $GhArgs) { $psi.ArgumentList.Add($a) }
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError  = $true
-        $psi.UseShellExecute = $false
-        $psi.CreateNoWindow = $true
-        $psi.Environment['GH_PROMPT_DISABLED'] = '1'
+    $maxAttempts = 10
+    $baseDelay = 1  # seconds
 
-        $proc = [System.Diagnostics.Process]::Start($psi)
-        if ($proc.WaitForExit(10000)) {    # 10-second timeout
-            if ($proc.ExitCode -eq 0) {
-                $tok = $proc.StandardOutput.ReadToEnd().Trim()
-                if ($tok) { return $tok }
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        try {
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = 'gh'
+            foreach ($a in @('auth', 'token') + $GhArgs) { $psi.ArgumentList.Add($a) }
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError  = $true
+            $psi.UseShellExecute = $false
+            $psi.CreateNoWindow = $true
+            $psi.Environment['GH_PROMPT_DISABLED'] = '1'
+
+            $proc = [System.Diagnostics.Process]::Start($psi)
+            if ($proc.WaitForExit(10000)) {    # 10-second timeout
+                if ($proc.ExitCode -eq 0) {
+                    $tok = $proc.StandardOutput.ReadToEnd().Trim()
+                    if ($tok) { return $tok }
+                }
+                # Non-zero exit or empty output — retry
+            } else {
+                # Hung — kill and retry
+                try { $proc.Kill() } catch {}
             }
-        } else {
-            # Hung — kill it
-            try { $proc.Kill() } catch {}
+        } catch {}
+
+        if ($attempt -lt $maxAttempts) {
+            $delay = [math]::Min($baseDelay * [math]::Pow(2, $attempt - 1), 10)
+            Start-Sleep -Milliseconds ([int]($delay * 1000))
         }
-    } catch {}
+    }
     return $null
 }
 
