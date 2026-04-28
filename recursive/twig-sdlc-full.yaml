@@ -87,12 +87,21 @@ agents:
     input:
       - state_detector.output
     prompt: |
-      You requested `intent=new` but prior work already exists for this work item.
+      ## ⚠️ Intent Conflict — Prior Work Exists
 
-      **State detection result:**
+      🔗 [ADO Work Item](https://dev.azure.com/dangreen-msft/Twig/_workitems/edit/{{ workflow.input.work_item_id }})
+
+      You requested `intent=new`, but the state detector found **existing work** for this item:
+
+      ```
       {{ state_detector.output.stdout }}
+      ```
 
-      What would you like to do?
+      | Option | What happens |
+      |--------|-------------|
+      | **Resume** | Pick up where the previous run left off — existing children, branches, and PRs are preserved |
+      | **Redo** | Delete all existing children, branches, and PRs, then start fresh |
+      | **Cancel** | Stop the workflow — no changes made |
     options:
       - label: "Resume where we left off"
         value: "resume"

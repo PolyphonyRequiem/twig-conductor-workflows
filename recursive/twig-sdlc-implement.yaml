@@ -392,11 +392,37 @@ agents:
     input:
       - pr_finalizer.output
     prompt: |
-      PR verification has failed after {{ pr_finalizer.output.verification_attempt }} attempts.
-      **Unmerged PGs:** {{ pr_finalizer.output.unmerged_pr_groups | json }}
-      **Orphaned branches:** {{ pr_finalizer.output.orphaned_branches | json }}
-      **State violations:** {{ pr_finalizer.output.state_violations | json }}
-      **Summary:** {{ pr_finalizer.output.summary }}
+      ## ❌ PR Verification Failed
+
+      🔗 [ADO Work Item](https://dev.azure.com/dangreen-msft/Twig/_workitems/edit/{{ workflow.input.work_item_id }})
+
+      Verification has failed after **{{ pr_finalizer.output.verification_attempt }} attempts**.
+
+      ### Unmerged PR Groups
+
+      {% for pg in pr_finalizer.output.unmerged_pr_groups %}
+      - ❌ **{{ pg }}**
+      {% endfor %}
+
+      {% if pr_finalizer.output.orphaned_branches | length > 0 %}
+      ### Orphaned Branches
+
+      {% for branch in pr_finalizer.output.orphaned_branches %}
+      - `{{ branch }}`
+      {% endfor %}
+      {% endif %}
+
+      {% if pr_finalizer.output.state_violations | length > 0 %}
+      ### State Violations
+
+      {% for v in pr_finalizer.output.state_violations %}
+      - ⚠️ {{ v }}
+      {% endfor %}
+      {% endif %}
+
+      ### Summary
+
+      {{ pr_finalizer.output.summary }}
     options:
       - label: "Retry verification"
         value: retry

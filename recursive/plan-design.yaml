@@ -122,12 +122,12 @@ agents:
     input:
       - architect.output
     prompt: |
-      ## ❓ Open Questions Requiring Your Input
+      ## ❓ Architect Needs Your Input
 
       📄 [View Plan]({{ architect.output.plan_path }})
       🔗 [ADO Work Item](https://dev.azure.com/dangreen-msft/Twig/_workitems/edit/{{ workflow.input.work_item_id }})
 
-      The architect has **blocking questions** that need your input before the plan can proceed.
+      The architect encountered **blocking ambiguity** while drafting the plan. The questions below cannot be resolved from the codebase or work item alone — your guidance is needed.
 
       ---
 
@@ -135,7 +135,7 @@ agents:
 
       ---
 
-      > **Tip:** Choose *Provide Input & Revise* to answer the questions and send the architect back for another pass.
+      > Choose **Provide Input & Revise** to type your answers. The architect will incorporate them and produce a revised plan. If the questions aren't important, **Proceed Without Answering** skips straight to review.
     options:
       - label: "Proceed Without Answering"
         value: proceed
