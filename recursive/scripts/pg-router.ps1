@@ -146,13 +146,17 @@ try {
         }
 
         # Backwards compatibility: if no merged PR matches the epic-scoped branch
-        # name but ALL of the PG's issues are Done, the PG was completed under a
-        # prior naming convention (e.g., "feature/pg-1" instead of "feature/2114-pg-1").
-        # Trust the ADO issue state as the source of truth.
+        # name but ALL of the PG's issues/tasks are Done, the PG was completed under a
+        # prior naming convention or the gh query failed. Trust ADO state as source of truth.
         if (-not $hasMergedPR -and ($pg.branch_name -notin $remoteBranches)) {
             $pgIssueStates = @($issues | Where-Object { $_.id -in $pg.issue_ids } | ForEach-Object { $_.state })
             $allIssuesDone = $pgIssueStates.Count -gt 0 -and ($pgIssueStates | Where-Object { $_ -ne 'Done' }).Count -eq 0
-            if ($allIssuesDone) {
+
+            # Task-only PGs (no issue_ids): fall back to task state check
+            $pgTaskStates = @($allTasks | Where-Object { $_.id -in $pg.task_ids } | ForEach-Object { $_.state })
+            $allTasksDoneInPG = $pgTaskStates.Count -gt 0 -and ($pgTaskStates | Where-Object { $_ -ne 'Done' }).Count -eq 0
+
+            if ($allIssuesDone -or $allTasksDoneInPG) {
                 $hasMergedPR = $true
             }
         }
