@@ -46,9 +46,6 @@ agents:
       - "{{ workflow.dir }}/scripts/enumerate-children.ps1"
       - "-WorkItemId"
       - "{{ workflow.input.work_item_id }}"
-    output:
-      children:
-        type: array
     routes:
       - to: plan_children
 
