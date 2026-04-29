@@ -145,10 +145,15 @@ try {
             }
         }
 
-        # Backwards compatibility: if no merged PR matches the epic-scoped branch
-        # name but ALL of the PG's issues/tasks are Done, the PG was completed under a
-        # prior naming convention or the gh query failed. Trust ADO state as source of truth.
-        if (-not $hasMergedPR -and ($pg.branch_name -notin $remoteBranches)) {
+        # Backwards compatibility / gh-failure recovery: if no merged PR matches
+        # the branch name, trust ADO state as source of truth. This fires when:
+        #   - Branch was renamed or created under a prior convention
+        #   - gh pr list failed or returned stale data (auth issues, timeouts)
+        #   - Branch deletion failed after merge (permissions), leaving a stale ref
+        # Only require the branch to be absent when there IS an open PR on it —
+        # otherwise an undeletable branch would block completion forever.
+        $hasOpenPR = ($openPRs | Where-Object { $_.headRefName -eq $pg.branch_name }).Count -gt 0
+        if (-not $hasMergedPR -and -not $hasOpenPR) {
             $pgIssueStates = @($issues | Where-Object { $_.id -in $pg.issue_ids } | ForEach-Object { $_.state })
             $allIssuesDone = $pgIssueStates.Count -gt 0 -and ($pgIssueStates | Where-Object { $_ -ne 'Done' }).Count -eq 0
 
