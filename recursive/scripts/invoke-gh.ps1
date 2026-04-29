@@ -39,8 +39,12 @@ function _InvokeGh {
             $psi.Environment['GH_PROMPT_DISABLED'] = '1'
 
             $proc = [System.Diagnostics.Process]::Start($psi)
+            # Read stdout asynchronously BEFORE WaitForExit to avoid pipe buffer deadlock.
+            # If stdout exceeds ~4KB and nobody is reading, the child blocks and WaitForExit times out.
+            $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $proc.StandardError.ReadToEndAsync()
             if ($proc.WaitForExit(10000)) {    # 10-second timeout
-                $stdout = $proc.StandardOutput.ReadToEnd().Trim()
+                $stdout = $stdoutTask.GetAwaiter().GetResult().Trim()
                 if ($proc.ExitCode -eq 0 -and $stdout) {
                     return $stdout
                 }

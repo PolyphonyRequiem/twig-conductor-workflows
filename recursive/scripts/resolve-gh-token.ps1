@@ -41,9 +41,12 @@ function _InvokeGhAuthToken {
             $psi.Environment['GH_PROMPT_DISABLED'] = '1'
 
             $proc = [System.Diagnostics.Process]::Start($psi)
+            # Read stdout asynchronously BEFORE WaitForExit to avoid pipe buffer deadlock.
+            $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $proc.StandardError.ReadToEndAsync()
             if ($proc.WaitForExit(10000)) {    # 10-second timeout
                 if ($proc.ExitCode -eq 0) {
-                    $tok = $proc.StandardOutput.ReadToEnd().Trim()
+                    $tok = $stdoutTask.GetAwaiter().GetResult().Trim()
                     if ($tok) { return $tok }
                 }
                 # Non-zero exit or empty output — retry
