@@ -65,6 +65,22 @@ $seedStatus = if ($childCount -eq 0) { 'unseeded' }
               elseif ($todoCount -eq $childCount) { 'seeded' }
               else { 'partial' }
 
+# Check if any non-terminal children are missing Tasks (grandchildren).
+# This detects the "Issues exist but no Tasks" state that causes infinite
+# routing loops in implementation (task_router finds nothing → all_tasks_done
+# → pg_router loops back). Uses the --depth 2 tree data already loaded.
+$anyChildMissingTasks = $false
+if ($hasSeededChildren) {
+    foreach ($child in $children) {
+        if ($child.state -eq 'Done') { continue }
+        $gcCount = if ($child.children) { $child.children.Count } else { 0 }
+        if ($gcCount -eq 0) {
+            $anyChildMissingTasks = $true
+            break
+        }
+    }
+}
+
 $childrenSummary = @{
     total = $childCount
     done  = $doneCount
@@ -203,11 +219,17 @@ elseif (-not $errorMsg -and -not $intentConflict -and -not $needsCleanup) {
     }
 
     if (-not $errorMsg) {
-        if ($hasSeededChildren -and $implementationStatus -eq 'in_progress') {
+        if ($hasSeededChildren -and $anyChildMissingTasks -and $implementationStatus -ne 'in_progress') {
+            # Children (Issues) exist but some have no Tasks — need task decomposition
+            # before implementation can begin. Skip this if work is already in progress
+            # (partial implementation should continue, not re-plan).
+            $phase = 'needs_task_decomposition'
+        }
+        elseif ($hasSeededChildren -and $implementationStatus -eq 'in_progress') {
             $phase = 'ready_for_implementation'
         }
         elseif ($hasSeededChildren) {
-            # Children exist but no work started — implementation can begin
+            # Children exist with Tasks — implementation can begin
             $phase = 'ready_for_implementation'
         }
         elseif ($hasPlan) {
@@ -234,6 +256,7 @@ $output = [ordered]@{
     plan_path             = $resolvedPlanPath
     plan_source           = $planSource
     has_seeded_children   = $hasSeededChildren
+    any_child_missing_tasks = $anyChildMissingTasks
     seed_status           = $seedStatus
     children_summary      = $childrenSummary
     implementation_status = $implementationStatus

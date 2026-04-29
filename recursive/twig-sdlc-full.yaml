@@ -75,6 +75,8 @@ agents:
         when: "{{ output.needs_cleanup }}"
       - to: $end
         when: "{{ output.phase == 'done' }}"
+      - to: task_decomposition
+        when: "{{ output.phase == 'needs_task_decomposition' }}"
       - to: implementation
         when: "{{ output.phase == 'ready_for_implementation' }}"
       - to: planning
@@ -146,6 +148,27 @@ agents:
         type: string
     routes:
       - to: planning
+
+  # ── TASK DECOMPOSITION (sub-workflow) ────────────────────────────
+  # Handles pre-populated Issues that have no Tasks. Fans out to
+  # plan-child.yaml per Issue for task planning, then routes to
+  # implementation via checkout_main.
+  - name: task_decomposition
+    type: workflow
+    workflow: ./task-decomposition.yaml
+    input:
+      - workflow.input.work_item_id?
+      - workflow.input.intent?
+    input_mapping:
+      work_item_id: "{{ workflow.input.work_item_id }}"
+      intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
+    output:
+      work_item_id:
+        type: number
+      children:
+        type: array
+    routes:
+      - to: checkout_main
 
   # ── PLANNING (sub-workflow) ─────────────────────────────────────
   - name: planning

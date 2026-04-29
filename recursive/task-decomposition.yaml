@@ -1,0 +1,79 @@
+# task-decomposition.yaml — Decompose pre-existing Issues into Tasks
+#
+# Handles the case where an Epic has Issues (children) but some or all
+# Issues have no Tasks (grandchildren). Without Tasks, the implementation
+# workflow's task_router cannot find work and enters an infinite loop.
+#
+# This sub-workflow enumerates existing Issues, then fans out to
+# plan-child.yaml for each one. plan-child.yaml's task_check/complexity
+# routing handles the actual decomposition (architect for complex items,
+# description_enricher for simple ones). Issues that already have Tasks
+# are skipped by plan-child's resume logic.
+workflow:
+  name: task-decomposition
+  description: Decompose pre-existing Issues into Tasks via plan-child fan-out
+  entry_point: enumerate_children
+  runtime:
+    provider: copilot
+    default_model: claude-sonnet-4.6
+    mcp_servers:
+      twig:
+        command: twig-mcp
+        tools: ["*"]
+  input:
+    work_item_id:
+      type: number
+      required: true
+      description: Root work item (Epic) whose children need task decomposition
+    intent:
+      type: string
+      required: false
+      default: resume
+  context:
+    mode: explicit
+  limits:
+    max_iterations: 40
+
+agents:
+  # ── ENUMERATE CHILDREN ─────────────────────────────────────────
+  - name: enumerate_children
+    description: List non-Done children with their task counts
+    type: script
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/enumerate-children.ps1"
+      - "-WorkItemId"
+      - "{{ workflow.input.work_item_id }}"
+    output:
+      children:
+        type: array
+    routes:
+      - to: plan_children
+
+# =============================================================================
+# FOR_EACH — Fan out to plan-child.yaml for each child needing decomposition
+# =============================================================================
+for_each:
+  - name: plan_children
+    type: for_each
+    source: enumerate_children.output.children
+    as: child
+    max_concurrent: 1
+    agent:
+      name: plan_single_child
+      type: workflow
+      workflow: ./plan-child.yaml
+      input_mapping:
+        work_item_id: "{{ child.id }}"
+        title: "{{ child.title }}"
+        type: "{{ child.type }}"
+        task_count: "{{ child.task_count | default(0) }}"
+        intent: "{{ workflow.input.intent }}"
+    routes:
+      - to: $end
+
+output:
+  work_item_id: "{{ workflow.input.work_item_id }}"
+  children: "{{ enumerate_children.output.children | json if enumerate_children is defined else '[]' }}"
