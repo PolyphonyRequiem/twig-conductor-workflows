@@ -146,14 +146,16 @@ try {
         }
 
         # Backwards compatibility / gh-failure recovery: if no merged PR matches
-        # the branch name, trust ADO state as source of truth. This fires when:
+        # the branch name AND the branch no longer exists remotely, trust ADO
+        # state as source of truth. This fires when:
         #   - Branch was renamed or created under a prior convention
         #   - gh pr list failed or returned stale data (auth issues, timeouts)
-        #   - Branch deletion failed after merge (permissions), leaving a stale ref
-        # Only require the branch to be absent when there IS an open PR on it —
-        # otherwise an undeletable branch would block completion forever.
+        #   - Branch was cleaned up after merge via other means
+        # If the branch still exists remotely, a PR is still needed — don't
+        # short-circuit to complete or scope_closer will never run.
         $hasOpenPR = ($openPRs | Where-Object { $_.headRefName -eq $pg.branch_name }).Count -gt 0
-        if (-not $hasMergedPR -and -not $hasOpenPR) {
+        $branchExistsRemotely = $pg.branch_name -in $remoteBranches
+        if (-not $hasMergedPR -and -not $hasOpenPR -and -not $branchExistsRemotely) {
             $pgIssueStates = @($issues | Where-Object { $_.id -in $pg.issue_ids } | ForEach-Object { $_.state })
             $allIssuesDone = $pgIssueStates.Count -gt 0 -and ($pgIssueStates | Where-Object { $_ -ne 'Done' }).Count -eq 0
 
