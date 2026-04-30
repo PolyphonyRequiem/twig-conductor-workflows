@@ -190,6 +190,17 @@ try {
             elseif ($allTasksDone -and ($pg.task_ids.Count -gt 0 -or $pgIssuesDone)) {
                 $pg['pg_state'] = 'submit_pr'
             }
+            elseif ($allTasksDone -and $pg.task_ids.Count -eq 0) {
+                # Zero tasks found for this PG — tasks were deleted or never seeded.
+                # If a branch exists, submit what's there (code was already committed).
+                # Otherwise skip this PG entirely to prevent infinite loop.
+                if ($branchExists) {
+                    $pg['pg_state'] = 'submit_pr'
+                } else {
+                    $completedPGs += $pg.name
+                    continue
+                }
+            }
             elseif ($branchExists) {
                 # Branch exists — route through branch_manager to rebase onto
                 # updated main (stacked PR pattern: PG-1 merged → rebase PG-2)
