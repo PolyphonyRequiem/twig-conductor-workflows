@@ -14,7 +14,7 @@
 #       → pr_reviewer (LLM, single review layer)
 #         → pr_fixer (LLM, if rejected) → pr_reviewer (fix loop)
 #       → pr_merge (LLM)
-#       → issue_closer (SCRIPT)
+#       → scope_closer (SCRIPT)
 #       → pg_router (loops to next PG)
 #     → pr_finalizer (LLM)
 #
@@ -147,7 +147,7 @@ agents:
     description: Picks the next PR group action based on ADO + git ground truth
     input:
       - intake.output
-      - issue_closer.output?
+      - scope_closer.output?
     command: pwsh
     args:
       - "-NoProfile"
@@ -325,15 +325,15 @@ agents:
       merge_commit:
         type: string
     routes:
-      - to: issue_closer
+      - to: scope_closer
         when: "{{ output.merged }}"
       - to: pr_submit
         when: "{{ not output.merged }}"
 
-  # ── ISSUE CLOSER (deterministic) ──────────────────────────────────
-  - name: issue_closer
+  # ── SCOPE CLOSER (deterministic) ──────────────────────────────────
+  - name: scope_closer
     type: script
-    description: Closes ADO issues for the current PG after PR merge
+    description: Closes all non-Done items in the current PG after PR merge
     input:
       - intake.output
       - pg_router.output
@@ -342,7 +342,7 @@ agents:
     args:
       - "-NoProfile"
       - "-File"
-      - "{{ workflow.dir }}/scripts/issue-closer.ps1"
+      - "{{ workflow.dir }}/scripts/scope-closer.ps1"
       - "-WorkItemId"
       - "{{ intake.output.work_item_id }}"
       - "-PGName"
