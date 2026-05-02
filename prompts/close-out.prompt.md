@@ -42,7 +42,7 @@ Do NOT assume implementing agents have already transitioned the Epic.
      Review its `summary` and `state_violations` above.
    - As a defense-in-depth check, also verify directly:
      For each PR in the completed list, use the `pull_request_read` MCP tool
-     (method: `get`, owner: `PolyphonyRequiem`, repo: `twig`, pullNumber: `<pr_number>`)
+     (method: `get`, owner: `{{ workflow.input.pr_owner }}`, repo: `{{ workflow.input.pr_repo_name }}`, pullNumber: `<pr_number>`)
      to check its state — must be "MERGED".
      **Do NOT use `gh pr view` CLI** — the `gh` CLI hangs in non-TTY environments.
    - If any PR is not merged, STOP and report the issue — do not proceed

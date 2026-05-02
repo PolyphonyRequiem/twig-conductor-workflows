@@ -45,6 +45,13 @@ workflow:
       github:
         command: pwsh
         args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
+        # env: forwards the launching shell's GH_CONDUCTOR_USER through to the
+        # wrapper. Workflow inputs can't reach MCP server args/env directly
+        # (MCP config is built once at workflow load, not per-run-rendered),
+        # so the user is expected to export this in their launching shell to
+        # match the workflow's gh_user input.
+        env:
+          GH_CONDUCTOR_USER: "${GH_CONDUCTOR_USER:-}"
         tools: ["*"]
       dotnet:
         command: node
@@ -74,6 +81,19 @@ workflow:
       required: false
       default: ""
       description: Not used by implementation — declared for shared intake prompt compatibility.
+    pr_owner:
+      type: string
+      required: true
+      description: GitHub owner (org or user) of the PR target repository (e.g. azure-core).
+    pr_repo_name:
+      type: string
+      required: true
+      description: GitHub repository name (without owner) of the PR target (e.g. cloudvault-conductor-registry).
+    gh_user:
+      type: string
+      required: false
+      default: ""
+      description: Explicit gh CLI user identity. Pinned via $env:GH_CONDUCTOR_USER so the workflow doesn't depend on the global active gh account. Empty = use active account.
   context:
     mode: explicit
   limits:
@@ -155,6 +175,12 @@ agents:
       - "{{ workflow.dir }}/scripts/pg-router.ps1"
       - "-WorkItemId"
       - "{{ intake.output.work_item_id }}"
+      - "-PrOwner"
+      - "{{ workflow.input.pr_owner }}"
+      - "-PrRepoName"
+      - "{{ workflow.input.pr_repo_name }}"
+      - "-GhUser"
+      - "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     routes:
       - to: branch_manager
         when: "{{ output.action == 'create_branch' }}"
@@ -215,6 +241,8 @@ agents:
       - intake.output
       - workflow.input.plan_path?
       - pr_reviewer.output?
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
     system_prompt: !file ../prompts/coder.system.md
     prompt: !file ../prompts/coder.prompt.md
     output:
@@ -242,6 +270,8 @@ agents:
       - pg_router.output
       - intake.output
       - work_tree_loader.output
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
     system_prompt: !file ../prompts/pr-submit.system.md
     prompt: !file ../prompts/pr-submit.prompt.md
     output:
@@ -262,6 +292,8 @@ agents:
       - pr_submit.output
       - intake.output
       - pg_router.output
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
     system_prompt: !file ../prompts/pr-reviewer.system.md
     prompt: !file ../prompts/pr-reviewer.prompt.md
     output:
@@ -295,6 +327,8 @@ agents:
       - pr_reviewer.output
       - pr_submit.output
       - intake.output
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
     system_prompt: !file ../prompts/pr-fixer.system.md
     prompt: !file ../prompts/pr-fixer.prompt.md
     output:
@@ -313,6 +347,8 @@ agents:
       - pr_submit.output
       - pg_router.output
       - intake.output
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
     system_prompt: !file ../prompts/pr-merge.system.md
     prompt: !file ../prompts/pr-merge.prompt.md
     output:
@@ -362,6 +398,8 @@ agents:
       - pg_router.output
       - intake.output
       - pr_finalizer.output?
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
     system_prompt: !file ../prompts/pr-finalizer.system.md
     prompt: !file ../prompts/pr-finalizer.prompt.md
     output:

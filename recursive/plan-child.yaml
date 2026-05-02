@@ -100,12 +100,14 @@ agents:
         type: number
       planning_summary:
         type: string
+      plan_revision_count:
+        type: number
     routes:
       - to: child_reviewer
 
   # ── CHILD REVIEWER ────────────────────────────────────────────
   - name: child_reviewer
-    description: Reviews the task decomposition
+    description: Reviews the task decomposition using weighted rubric
     model: claude-sonnet-4.6
     tools:
       - twig_set
@@ -116,22 +118,41 @@ agents:
       - workflow.input.work_item_id
       - workflow.input.title
       - workflow.input.plan_path?
-    system_prompt: |
-      You review child-level task decomposition plans.
-      Check completeness, granularity, descriptions, and test coverage.
+    system_prompt: !file prompts/child-reviewer.system.md
     prompt: !file prompts/plan-reviewer.prompt.md
     output:
+      dimensions:
+        type: object
       score:
         type: number
       feedback:
         type: string
       critical_issues:
         type: array
-      approved:
-        type: boolean
+    routes:
+      - to: child_review_router
+
+  # ── CHILD REVIEW ROUTER (deterministic script) ────────────────
+  - name: child_review_router
+    description: Gating math — score, blocking issues, revision cap
+    type: script
+    input:
+      - child_reviewer.output
+      - child_architect.output
+    command: pwsh
+    args:
+      - "-NoProfile"
+      - "-File"
+      - "{{ workflow.dir }}/scripts/child-review-router.ps1"
+      - "-Score"
+      - "{{ child_reviewer.output.score }}"
+      - "-CriticalIssues"
+      - "{{ child_reviewer.output.critical_issues | json }}"
+      - "-RevisionCount"
+      - "{{ child_architect.output.plan_revision_count | default(0) }}"
     routes:
       - to: child_architect
-        when: "{{ not output.approved }}"
+        when: "{{ output.route == 'child_architect' }}"
       - to: $end
 
   # ── DESCRIPTION ENRICHER (simple children) ────────────────────

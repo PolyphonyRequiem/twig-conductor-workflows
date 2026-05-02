@@ -20,7 +20,7 @@ Check for branches and PRs:
 git branch -a | Select-String "{{ workflow.input.work_item_id }}"
 ```
 Use the `list_pull_requests` MCP tool to find open PRs:
-- owner: `PolyphonyRequiem`, repo: `twig`, state: `open`
+- owner: `{{ workflow.input.pr_owner }}`, repo: `{{ workflow.input.pr_repo_name }}`, state: `open`
 - Filter results for PRs related to work item {{ workflow.input.work_item_id }}
 - **Do NOT use `gh pr list` CLI** — the `gh` CLI hangs in non-TTY environments.
 

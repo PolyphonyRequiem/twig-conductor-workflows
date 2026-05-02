@@ -47,6 +47,19 @@ workflow:
       type: string
       required: false
       default: ""
+    pr_owner:
+      type: string
+      required: true
+      description: GitHub owner of the PR target repository.
+    pr_repo_name:
+      type: string
+      required: true
+      description: GitHub repository name (without owner) of the PR target.
+    gh_user:
+      type: string
+      required: false
+      default: ""
+      description: Explicit gh CLI user identity.
   context:
     mode: explicit
   limits:
@@ -84,6 +97,8 @@ agents:
       - workflow.input.existing_issues?
       - workflow.input.intent?
       - workflow.input.prompt?
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
       - architect.output?
       - review_router.output?
       - plan_approval.output?

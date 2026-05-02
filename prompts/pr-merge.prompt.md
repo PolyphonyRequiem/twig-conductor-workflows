@@ -3,8 +3,8 @@ Merge the approved PR.
 
 ## Steps
 1. Merge using the `merge_pull_request` MCP tool:
-   - owner: `PolyphonyRequiem`
-   - repo: `twig`
+   - owner: `{{ workflow.input.pr_owner }}`
+   - repo: `{{ workflow.input.pr_repo_name }}`
    - pullNumber: `{{ pr_submit.output.pr_number }}`
    - merge_method: `merge`
    - **Do NOT use `gh pr merge` CLI** — always use the MCP tool.

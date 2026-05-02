@@ -41,7 +41,7 @@ Before drafting, perform thorough research:
 
 ### Codebase Analysis
 - **Use the GitHub MCP `search_code` tool** to find symbols, patterns, and implementations
-  in `PolyphonyRequiem/twig`. This is faster and more precise than grepping locally.
+  in `{{ workflow.input.pr_owner }}/{{ workflow.input.pr_repo_name }}`. This is faster and more precise than grepping locally.
 - Use `get_file_contents` via GitHub MCP to read files without filesystem navigation.
 - Identify existing components, patterns, abstractions, and conventions
 - Understand the current architecture and how data flows

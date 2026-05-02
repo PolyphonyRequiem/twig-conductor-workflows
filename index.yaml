@@ -23,3 +23,7 @@ workflows:
     description: "Sub-workflow — breaks a single Issue into Tasks (called by twig-sdlc-planning)"
     path: recursive/plan-issue.yaml
     versions: ["0.1.0"]
+  twig-sdlc-v2-full:
+    description: "Type-agnostic SDLC v2 — state detection, planning, implementation, feature PR, close-out"
+    path: v2/twig-sdlc-v2-full.yaml
+    versions: ["1.0.0"]

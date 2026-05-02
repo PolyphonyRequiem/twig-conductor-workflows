@@ -27,7 +27,7 @@ If a branch matches a PG that should be complete, that group's work is orphaned.
 
 ### 3. Verify merged PRs via GitHub
 Use the `list_pull_requests` MCP tool to check merged PRs:
-- owner: `PolyphonyRequiem`, repo: `twig`, state: `closed`
+- owner: `{{ workflow.input.pr_owner }}`, repo: `{{ workflow.input.pr_repo_name }}`, state: `closed`
 - Cross-reference each PG's branch name against merged PRs. Every PG must have
   a corresponding merged PR.
 - **Do NOT use `gh pr list` CLI** — always use the MCP tool.

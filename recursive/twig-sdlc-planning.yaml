@@ -36,6 +36,19 @@ workflow:
       required: false
       default: resume
       description: User intent — new, redo, or resume.
+    pr_owner:
+      type: string
+      required: true
+      description: GitHub owner (org or user) of the PR target repository.
+    pr_repo_name:
+      type: string
+      required: true
+      description: GitHub repository name (without owner) of the PR target.
+    gh_user:
+      type: string
+      required: false
+      default: ""
+      description: Explicit gh CLI user identity. Pinned via $env:GH_CONDUCTOR_USER.
   context:
     mode: explicit
   limits:
@@ -112,6 +125,9 @@ agents:
       existing_issues: "{{ intake.output.existing_issues | json }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
       prompt: "{{ workflow.input.prompt if workflow.input.prompt else '' }}"
+      pr_owner: "{{ workflow.input.pr_owner }}"
+      pr_repo_name: "{{ workflow.input.pr_repo_name }}"
+      gh_user: "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     output:
       plan_path:
         type: string
@@ -137,6 +153,9 @@ agents:
       plan_path: "{{ design.output.plan_path }}"
       title: "{{ intake.output.title }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
+      pr_owner: "{{ workflow.input.pr_owner }}"
+      pr_repo_name: "{{ workflow.input.pr_repo_name }}"
+      gh_user: "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     output:
       branch_name:
         type: string
@@ -160,6 +179,9 @@ agents:
       plan_path: "{{ design.output.plan_path }}"
       pr_groups: "{{ design.output.pr_groups | json }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
+      pr_owner: "{{ workflow.input.pr_owner }}"
+      pr_repo_name: "{{ workflow.input.pr_repo_name }}"
+      gh_user: "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     output:
       children:
         type: array

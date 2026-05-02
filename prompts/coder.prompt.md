@@ -20,7 +20,7 @@ First, read the full task description from ADO:
 - Use the twig MCP tool `twig_show` to read the task's full description and acceptance criteria
 
 **Code discovery**: Use the GitHub MCP `search_code` tool to find relevant symbols, patterns,
-and existing implementations in `PolyphonyRequiem/twig` before writing code. This is faster
+and existing implementations in `{{ workflow.input.pr_owner }}/{{ workflow.input.pr_repo_name }}` before writing code. This is faster
 and more reliable than grepping through the local filesystem.
 
 Then check if this task was already worked on:
