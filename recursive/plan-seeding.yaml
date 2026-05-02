@@ -41,6 +41,19 @@ workflow:
       type: string
       required: false
       default: resume
+    pr_owner:
+      type: string
+      required: true
+      description: GitHub owner of the PR target repository.
+    pr_repo_name:
+      type: string
+      required: true
+      description: GitHub repository name (without owner) of the PR target.
+    gh_user:
+      type: string
+      required: false
+      default: ""
+      description: Explicit gh CLI user identity.
   context:
     mode: explicit
   limits:

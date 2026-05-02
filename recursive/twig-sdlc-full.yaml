@@ -30,6 +30,9 @@ workflow:
       github:
         command: pwsh
         args: ["-NoProfile", "-File", "recursive/scripts/github-mcp-wrapper.ps1"]
+        # See twig-sdlc-implement.yaml for rationale.
+        env:
+          GH_CONDUCTOR_USER: "${GH_CONDUCTOR_USER:-}"
         tools: ["*"]
   input:
     work_item_id:
@@ -49,6 +52,19 @@ workflow:
         User intent: "new" (fresh start, no prior work expected),
         "redo" (delete existing assets and start over),
         "resume" (pick up where we left off).
+    pr_owner:
+      type: string
+      required: true
+      description: GitHub owner (org or user) of the PR target repository (e.g. azure-core).
+    pr_repo_name:
+      type: string
+      required: true
+      description: GitHub repository name (without owner) of the PR target (e.g. cloudvault-conductor-registry).
+    gh_user:
+      type: string
+      required: false
+      default: ""
+      description: Explicit gh CLI user identity. Pinned via $env:GH_CONDUCTOR_USER. Empty = use active gh account.
   context:
     mode: explicit
   limits:
@@ -68,6 +84,12 @@ agents:
       - "{{ workflow.input.work_item_id if workflow.input.work_item_id else 0 }}"
       - "-Intent"
       - "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
+      - "-PrOwner"
+      - "{{ workflow.input.pr_owner }}"
+      - "-PrRepoName"
+      - "{{ workflow.input.pr_repo_name }}"
+      - "-GhUser"
+      - "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     routes:
       - to: intent_correction_gate
         when: "{{ output.intent_conflict }}"
@@ -132,6 +154,8 @@ agents:
       - update_pull_request
     input:
       - workflow.input.work_item_id
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
       - state_detector.output
     system_prompt: !file ../prompts/cleanup.system.md
     prompt: !file ../prompts/cleanup.prompt.md
@@ -162,6 +186,9 @@ agents:
     input_mapping:
       work_item_id: "{{ workflow.input.work_item_id }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
+      pr_owner: "{{ workflow.input.pr_owner }}"
+      pr_repo_name: "{{ workflow.input.pr_repo_name }}"
+      gh_user: "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     output:
       work_item_id:
         type: number
@@ -182,6 +209,9 @@ agents:
       work_item_id: "{{ workflow.input.work_item_id }}"
       prompt: "{{ workflow.input.prompt if workflow.input.prompt else '' }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
+      pr_owner: "{{ workflow.input.pr_owner }}"
+      pr_repo_name: "{{ workflow.input.pr_repo_name }}"
+      gh_user: "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     output:
       work_item_id:
         type: number
@@ -218,6 +248,9 @@ agents:
       plan_path: "{{ planning.output.plan_path if planning is defined and planning.output is defined else '' }}"
       intent: "{{ workflow.input.intent if workflow.input.intent else 'resume' }}"
       prompt: ""
+      pr_owner: "{{ workflow.input.pr_owner }}"
+      pr_repo_name: "{{ workflow.input.pr_repo_name }}"
+      gh_user: "{{ workflow.input.gh_user if workflow.input.gh_user else '' }}"
     output:
       completed_pgs:
         type: array
@@ -243,6 +276,8 @@ agents:
       - pull_request_read
     input:
       - workflow.input.work_item_id
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
       - state_detector.output?
       - implementation.output?
     system_prompt: !file ../prompts/close-out.system.md
@@ -274,6 +309,8 @@ agents:
       - list_pull_requests
     input:
       - workflow.input.work_item_id
+      - workflow.input.pr_owner
+      - workflow.input.pr_repo_name
       - state_detector.output?
       - close_out.output?
       - implementation.output?

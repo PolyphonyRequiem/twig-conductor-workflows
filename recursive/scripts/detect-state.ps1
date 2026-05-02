@@ -19,6 +19,18 @@
 
 .PARAMETER PlanPath
     Explicit plan file override for debugging/recovery.
+
+.PARAMETER PrOwner
+    GitHub owner (org or user) of the PR target repository. Required for
+    cross-repo workflows so we don't hardcode any single owner/repo.
+
+.PARAMETER PrRepoName
+    GitHub repository name (without owner) of the PR target.
+
+.PARAMETER GhUser
+    Explicit gh CLI user identity. Exported as $env:GH_CONDUCTOR_USER before
+    sourcing resolve-gh-token.ps1 so we don't rely on the global active gh
+    account, which is mutable shared state.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -27,10 +39,21 @@ param(
     [ValidateSet('new', 'redo', 'resume')]
     [string]$Intent = 'resume',
 
-    [string]$PlanPath = ''
+    [string]$PlanPath = '',
+
+    [string]$PrOwner = '',
+
+    [string]$PrRepoName = '',
+
+    [string]$GhUser = ''
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Pin gh user before any script that needs to call gh CLI.
+if ($GhUser) {
+    $env:GH_CONDUCTOR_USER = $GhUser
+}
 
 try {
 # ── Step 0: Sync local cache from ADO ────────────────────────────────────────
@@ -162,7 +185,11 @@ if ($doneCount -eq $childCount -and $childCount -gt 0) {
         Where-Object { $_ -like "feature/$WorkItemId-*" })
     if ($remoteBranches.Count -gt 0) {
         # Feature branches still exist — check if they have unmerged PRs
-        $mergedPRJson = _InvokeGh @('pr', 'list', '--repo', 'PolyphonyRequiem/twig', '--state', 'merged', '--limit', '100', '--json', 'headRefName')
+        if (-not ($PrOwner -and $PrRepoName)) {
+            throw "detect-state: -PrOwner and -PrRepoName are required when feature branches exist; got PrOwner='$PrOwner', PrRepoName='$PrRepoName'."
+        }
+        $_prRepo = "$PrOwner/$PrRepoName"
+        $mergedPRJson = _InvokeGh @('pr', 'list', '--repo', $_prRepo, '--state', 'merged', '--limit', '100', '--json', 'headRefName')
         $mergedPRs = @(if ($mergedPRJson) { $mergedPRJson | ConvertFrom-Json | ForEach-Object { $_.headRefName } })
         $unmerged = @($remoteBranches | Where-Object { $_ -notin $mergedPRs })
         if ($unmerged.Count -gt 0) {

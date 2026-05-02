@@ -15,7 +15,7 @@ twig tree --output json
 ```
 
 Check merged PRs using the `list_pull_requests` MCP tool:
-- owner: `PolyphonyRequiem`, repo: `twig`, state: `closed`
+- owner: `{{ workflow.input.pr_owner }}`, repo: `{{ workflow.input.pr_repo_name }}`, state: `closed`
 - Filter for PRs related to work item {{ close_out.output.work_item_id | default(state_detector.output.work_item_id) }}
 - **Do NOT use `gh pr list` CLI** — the `gh` CLI hangs in non-TTY environments.
 

@@ -22,7 +22,7 @@ Score each dimension on a 1-5 scale. Provide a brief rationale per dimension.
 **Critical issue** = any dimension scored ≤ 2 → REQUEST_CHANGES.
 **Pass** = no dimension ≤ 2 and composite ≥ 80 → APPROVE.
 
-Review all commits: Use GitHub MCP `pull_request_read` with method `get_diff` for PR #{{ pr_submit.output.pr_number }} (owner: PolyphonyRequiem, repo: twig).
+Review all commits: Use GitHub MCP `pull_request_read` with method `get_diff` for PR #{{ pr_submit.output.pr_number }} (owner: {{ workflow.input.pr_owner }}, repo: {{ workflow.input.pr_repo_name }}).
 Run targeted tests: `dotnet test tests/<RelevantProject>.Tests --no-build --settings test.runsettings`
 Note what was done well — strengths reinforce good patterns.
 

@@ -7,6 +7,8 @@
     Resolution order:
       1. If GH_TOKEN is already set, do nothing (caller or CI provided it).
       2. If GH_CONDUCTOR_USER is set, use that as the --user for gh auth token.
+         FAIL LOUD if no token can be retrieved — never fall back silently when
+         the caller has been explicit about which identity to use.
       3. Derive the repo owner from git remote origin and try --user <owner>.
       4. Fall back to plain gh auth token (active account).
 
@@ -66,6 +68,7 @@ function _InvokeGhAuthToken {
 
 # 1. Explicit user override
 $_ghUser = $env:GH_CONDUCTOR_USER
+$_ghUserExplicit = [bool]$_ghUser
 
 # 2. Derive from repo remote owner
 if (-not $_ghUser) {
@@ -75,10 +78,15 @@ if (-not $_ghUser) {
     }
 }
 
-# 3. Try user-specific token, then fall back to active account
+# 3. Try user-specific token, then fall back to active account.
+#    When GH_CONDUCTOR_USER was set explicitly, fail loud if the token
+#    cannot be retrieved — never silently use the wrong identity.
 $_token = $null
 if ($_ghUser) {
     $_token = _InvokeGhAuthToken @('--user', $_ghUser)
+}
+if (-not $_token -and $_ghUserExplicit) {
+    throw "resolve-gh-token: GH_CONDUCTOR_USER is set to '$_ghUser' but 'gh auth token --user $_ghUser' returned no token. Run 'gh auth login --user $_ghUser' or unset GH_CONDUCTOR_USER to fall back to the active account."
 }
 if (-not $_token) {
     $_token = _InvokeGhAuthToken @()
@@ -89,5 +97,5 @@ if ($_token) {
 }
 
 # Clean up temp variables and helper function (dot-sourced into caller's scope)
-Remove-Variable -Name _ghUser, _remoteUrl, _token -ErrorAction SilentlyContinue
+Remove-Variable -Name _ghUser, _ghUserExplicit, _remoteUrl, _token -ErrorAction SilentlyContinue
 Remove-Item -Path Function:\_InvokeGhAuthToken -ErrorAction SilentlyContinue

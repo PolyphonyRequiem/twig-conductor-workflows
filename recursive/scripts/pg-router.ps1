@@ -14,11 +14,37 @@
 
 .PARAMETER WorkItemId
     The Epic ADO work item ID.
+
+.PARAMETER PrOwner
+    GitHub owner (org or user) of the PR target repository. When set, this
+    overrides any value derived from `git remote get-url origin`. Required for
+    cross-repo workflows where the conductor run targets a repo different from
+    the user's default gh identity.
+
+.PARAMETER PrRepoName
+    GitHub repository name (without owner) of the PR target. Combined with
+    PrOwner to form the `--repo owner/name` slug for all gh CLI calls.
+
+.PARAMETER GhUser
+    Explicit gh CLI user identity to use for all gh API calls in this script.
+    When set, exported as $env:GH_CONDUCTOR_USER before token resolution so
+    the workflow doesn't depend on the (mutable, global) active gh account.
 #>
 [CmdletBinding()]
-param([Parameter(Mandatory)][int]$WorkItemId)
+param(
+    [Parameter(Mandatory)][int]$WorkItemId,
+    [string]$PrOwner = '',
+    [string]$PrRepoName = '',
+    [string]$GhUser = ''
+)
 
 $ErrorActionPreference = 'Stop'
+
+# Pin the gh user before token resolution (see resolve-gh-token.ps1 fail-loud
+# behaviour when GH_CONDUCTOR_USER is set explicitly).
+if ($GhUser) {
+    $env:GH_CONDUCTOR_USER = $GhUser
+}
 
 # Resolve GH_TOKEN (bypasses credential helper deadlock in non-TTY)
 . "$PSScriptRoot/resolve-gh-token.ps1"
@@ -26,10 +52,17 @@ $ErrorActionPreference = 'Stop'
 # Timeout-safe gh CLI wrapper (prevents hangs on gh pr list etc.)
 . "$PSScriptRoot/invoke-gh.ps1"
 
-# Derive --repo slug for all gh CLI calls (prevents repo-selection prompts)
+# Derive --repo slug for all gh CLI calls (prevents repo-selection prompts).
+# Prefer the explicit -PrOwner/-PrRepoName params over origin URL derivation
+# so multi-remote pollution can't silently flip the PR target.
 $_ghRepo = ''
-$_remoteUrl = (git remote get-url origin 2>$null) ?? ''
-if ($_remoteUrl -match 'github\.com(?:/|:)([^/]+/[^/.]+)') { $_ghRepo = $Matches[1] }
+if ($PrOwner -and $PrRepoName) {
+    $_ghRepo = "$PrOwner/$PrRepoName"
+}
+else {
+    $_remoteUrl = (git remote get-url origin 2>$null) ?? ''
+    if ($_remoteUrl -match 'github\.com(?:/|:)([^/]+/[^/.]+)') { $_ghRepo = $Matches[1] }
+}
 
 try {
     # ── Sync local cache ──────────────────────────────────────────────

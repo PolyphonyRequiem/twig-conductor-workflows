@@ -5,7 +5,7 @@ Create a PR for the current PR group.
 
 ## Idempotency Check
 First, use the GitHub MCP `list_pull_requests` tool to check if a PR already exists:
-- Owner: `PolyphonyRequiem`, Repo: `twig`, head filter: `{{ pg_router.output.branch_name }}`, state: `open`
+- Owner: `{{ workflow.input.pr_owner }}`, Repo: `{{ workflow.input.pr_repo_name }}`, head filter: `{{ pg_router.output.branch_name }}`, state: `open`
 If a PR exists, return its info (number, url, title) without creating a duplicate.
 
 ## Steps (only if no existing PR)
@@ -41,8 +41,8 @@ If a PR exists, return its info (number, url, title) without creating a duplicat
    - **Do NOT run the full test suite** — the CI/CD pipeline handles comprehensive testing on the PR
 3. Push the branch: `git push -u origin {{ pg_router.output.branch_name }}`
 4. Create the PR using the `create_pull_request` MCP tool:
-   - owner: `PolyphonyRequiem`
-   - repo: `twig`
+   - owner: `{{ workflow.input.pr_owner }}`
+   - repo: `{{ workflow.input.pr_repo_name }}`
    - base: `main`
    - head: `{{ pg_router.output.branch_name }}`
    - title: `[{{ pg_router.output.current_pg }}] <PR group title>`
